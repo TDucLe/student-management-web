@@ -1,5 +1,8 @@
-# student-management-web
-student management web
+# Student Management System
+
+## 📂 Project Structure
+
+```bash
 student-management-system/
 │
 ├── db/                  # Kết nối và script database
@@ -40,6 +43,7 @@ student-management-system/
 ├── index.php            # Trang chính, điều hướng theo role
 ├── README.md            # Hướng dẫn setup
 └── .gitignore
+
 
 1. Branch Naming
 backend-db → Người 1 (Database & Backend Core)
