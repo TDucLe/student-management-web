@@ -1,119 +1,92 @@
 <?php
-session_start();
-include 'config.php';
-include 'auth.php';
+require_once 'config.php';
+requireLogin();
 
-checkLogin();
-if ($_SESSION['user_role'] !== 'teacher') {
-    die("Access denied. This page is for Teachers only.");
-}
+$user = getCurrentUser();
+if ($user['role'] !== 'teacher') die("Access denied.");
 
-$teacher_id = $_SESSION['user_id'];
+$teacher_id = $user['id'];
 $message = "";
 
-// 1. XỬ LÝ THÊM LỚP HỌC (Giữ nguyên)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_class'])) {
-    $name = $_POST['name'];
-    $schedule = $_POST['schedule'];
+    $course_id = $_POST['course_id'];
+    $schedule = trim($_POST['schedule']);
+    $room = trim($_POST['room']);
 
-    $sql_insert = "INSERT INTO classes (name, teacher_id, schedule) VALUES (?, ?, ?)";
-    $stmt_in = $conn->prepare($sql_insert);
-    $stmt_in->bind_param("sis", $name, $teacher_id, $schedule);
-    
-    if ($stmt_in->execute()) {
-        $message = "<p style='color: green;'>Class created successfully!</p>";
-    } else {
-        $message = "<p style='color: red;'>Error creating class: " . $stmt_in->error . "</p>";
-    }
+    try {
+        $check = $pdo->prepare("SELECT id FROM courses WHERE id = ? AND teacher_id = ?");
+        $check->execute([$course_id, $teacher_id]);
+        
+        if ($check->fetch()) {
+            $stmt_in = $pdo->prepare("INSERT INTO classes (course_id, schedule, room) VALUES (?, ?, ?)");
+            $stmt_in->execute([$course_id, $schedule, $room]);
+            $message = "<div class='success'>✅ Class scheduled successfully!</div>";
+        }
+    } catch (PDOException $e) {}
 }
 
-// 2. XỬ LÝ XÓA LỚP HỌC (Phần mới thêm)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_class'])) {
-    $class_id = $_POST['class_id'];
-
-    // Bảo mật: Chỉ cho phép xóa nếu lớp đó thuộc về giáo viên đang đăng nhập
-    $sql_delete = "DELETE FROM classes WHERE id = ? AND teacher_id = ?";
-    $stmt_del = $conn->prepare($sql_delete);
-    $stmt_del->bind_param("ii", $class_id, $teacher_id);
-    
-    if ($stmt_del->execute()) {
-        $message = "<p style='color: orange;'>Class deleted successfully!</p>";
-    } else {
-        $message = "<p style='color: red;'>Error deleting class: " . $stmt_del->error . "</p>";
-    }
+    try {
+        $stmt_del = $pdo->prepare("DELETE classes FROM classes INNER JOIN courses ON classes.course_id = courses.id WHERE classes.id = ? AND courses.teacher_id = ?");
+        $stmt_del->execute([$_POST['class_id'], $teacher_id]);
+        $message = "<div class='success'>🗑️ Class deleted successfully!</div>";
+    } catch (PDOException $e) {}
 }
 
-// 3. TRUY VẤN LẤY DANH SÁCH LỚP HỌC (Giữ nguyên)
-$sql_select = "SELECT id, name, schedule FROM classes WHERE teacher_id = ?";
-$stmt_sel = $conn->prepare($sql_select);
-$stmt_sel->bind_param("i", $teacher_id);
-$stmt_sel->execute();
-$classes = $stmt_sel->get_result();
+$stmt_courses = $pdo->prepare("SELECT id, name FROM courses WHERE teacher_id = ?");
+$stmt_courses->execute([$teacher_id]);
+$my_courses = $stmt_courses->fetchAll();
+
+$stmt_classes = $pdo->prepare("SELECT classes.id, courses.name AS course_name, classes.schedule, classes.room 
+                               FROM classes JOIN courses ON classes.course_id = courses.id 
+                               WHERE courses.teacher_id = ? ORDER BY classes.id DESC");
+$stmt_classes->execute([$teacher_id]);
+$my_classes = $stmt_classes->fetchAll();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Manage Classes</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #17a2b8; color: white; }
-        .form-group { margin-bottom: 15px; }
-        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; }
-        .btn-add { padding: 10px 15px; background-color: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        .btn-delete { background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
-        .btn-delete:hover { background-color: #c82333; }
-        .btn-back { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #007bff; }
+    <meta charset="UTF-8"><title>My Classes</title>
+    <style> /* Tái sử dụng CSS từ file courses */
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f5f5; padding: 20px; margin: 0; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { color: #333; margin-top: 0; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; } th, td { border-bottom: 1px solid #eee; padding: 12px; } th { background: #f9f9f9; color: #333; }
+        .form-group { margin-bottom: 15px; } label { display: block; margin-bottom: 8px; font-weight: 500; color: #555;}
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
+        .btn-add { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: 600; width: 100%; }
+        .btn-delete { background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 500; }
+        .btn-back { display: inline-block; margin-bottom: 20px; padding: 8px 15px; background: #f0f0f0; color: #333; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .success { background: #dcfce7; color: #166534; padding: 12px; border-radius: 5px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="dashboard.php" class="btn-back">&larr; Back to Dashboard</a>
-        
-        <h2>Create New Class</h2>
+        <a href="index.php" class="btn-back">&larr; Back to Dashboard</a>
+        <h2>🏫 Schedule New Class</h2>
         <?= $message ?>
-        <form method="POST" action="">
-            <div class="form-group">
-                <label>Class Name:</label>
-                <input type="text" name="name" required>
-            </div>
-            <div class="form-group">
-                <label>Schedule:</label>
-                <input type="text" name="schedule" required>
-            </div>
-            <button type="submit" name="add_class" class="btn-add">Create Class</button>
+        <form method="POST">
+            <div class="form-group"><label>Course:</label><select name="course_id" required><option value="">-- Choose Course --</option><?php foreach ($my_courses as $c): ?><option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?></select></div>
+            <div class="form-group"><label>Schedule:</label><input type="text" name="schedule" required placeholder="Monday 08:00-10:00"></div>
+            <div class="form-group"><label>Room:</label><input type="text" name="room" required placeholder="Room A101"></div>
+            <button type="submit" name="add_class" class="btn-add">Schedule Class</button>
         </form>
 
-        <hr style="margin: 30px 0;">
-
-        <h2>My Classes</h2>
-        <?php if ($classes->num_rows > 0): ?>
+        <h2 style="margin-top: 40px;">📋 Classes Scheduled</h2>
+        <?php if (count($my_classes) > 0): ?>
             <table>
-                <tr>
-                    <th>Class ID</th>
-                    <th>Class Name</th>
-                    <th>Schedule</th>
-                    <th>Action</th> </tr>
-                <?php while ($row = $classes->fetch_assoc()): ?>
+                <tr><th style="width: 50px; text-align: center;">No.</th><th>Course</th><th>Schedule</th><th>Room</th><th style="text-align: center;">Action</th></tr>
+                <?php $stt = 1; foreach ($my_classes as $row): ?>
                     <tr>
-                        <td><?= htmlspecialchars($row['id']) ?></td>
-                        <td><?= htmlspecialchars($row['name']) ?></td>
+                        <td style="text-align: center;"><strong><?= $stt++ ?></strong></td>
+                        <td><strong><?= htmlspecialchars($row['course_name']) ?></strong></td>
                         <td><?= htmlspecialchars($row['schedule']) ?></td>
-                        <td>
-                            <form method="POST" action="" onsubmit="return confirm('Are you sure you want to delete this class?');" style="display:inline;">
-                                <input type="hidden" name="class_id" value="<?= $row['id'] ?>">
-                                <button type="submit" name="delete_class" class="btn-delete">Delete</button>
-                            </form>
-                        </td>
+                        <td><?= htmlspecialchars($row['room']) ?></td>
+                        <td style="text-align: center;"><form method="POST" onsubmit="return confirm('Delete this class?');"><input type="hidden" name="class_id" value="<?= $row['id'] ?>"><button type="submit" name="delete_class" class="btn-delete">Delete</button></form></td>
                     </tr>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             </table>
-        <?php else: ?>
-            <p>You have not created any classes yet.</p>
         <?php endif; ?>
     </div>
 </body>
