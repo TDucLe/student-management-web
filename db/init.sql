@@ -6,9 +6,49 @@ USE student_management;
 -- ==========================================
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
+    username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'teacher', 'student') NOT NULL,
+
+    role ENUM(
+        'admin',
+        'teacher',
+        'student'
+    ) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
+
+    deleted_at TIMESTAMP NULL
+);
+
+-- ==========================================
+-- SEMESTERS
+-- ==========================================
+CREATE TABLE semesters (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    name VARCHAR(50) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- ==========================================
+-- ROOMS
+-- ==========================================
+CREATE TABLE rooms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    room_number VARCHAR(20) NOT NULL,
+    building VARCHAR(100),
+    capacity INT,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -17,14 +57,23 @@ CREATE TABLE users (
 -- ==========================================
 CREATE TABLE students (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     user_id INT UNIQUE,
+
     student_code VARCHAR(20) UNIQUE NOT NULL,
     full_name VARCHAR(100) NOT NULL,
+
     dob DATE,
     major VARCHAR(100),
     contact VARCHAR(50),
     address VARCHAR(255),
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
+
+    deleted_at TIMESTAMP NULL,
 
     FOREIGN KEY (user_id)
     REFERENCES users(id)
@@ -36,12 +85,21 @@ CREATE TABLE students (
 -- ==========================================
 CREATE TABLE teachers (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     user_id INT UNIQUE,
+
     teacher_code VARCHAR(20) UNIQUE NOT NULL,
     full_name VARCHAR(100) NOT NULL,
+
     department VARCHAR(100),
     contact VARCHAR(50),
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
+
+    deleted_at TIMESTAMP NULL,
 
     FOREIGN KEY (user_id)
     REFERENCES users(id)
@@ -53,15 +111,17 @@ CREATE TABLE teachers (
 -- ==========================================
 CREATE TABLE courses (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     course_code VARCHAR(20) UNIQUE NOT NULL,
     course_name VARCHAR(100) NOT NULL,
+
     credits INT NOT NULL,
-    teacher_id INT,
+    department VARCHAR(100),
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (teacher_id)
-    REFERENCES teachers(id)
-    ON DELETE SET NULL
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- ==========================================
@@ -69,14 +129,50 @@ CREATE TABLE courses (
 -- ==========================================
 CREATE TABLE classes (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     class_name VARCHAR(100) NOT NULL,
+
     course_id INT,
-    room VARCHAR(50),
-    schedule VARCHAR(100),
+    semester_id INT,
+    teacher_id INT,
+    room_id INT,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
 
     FOREIGN KEY (course_id)
     REFERENCES courses(id)
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (semester_id)
+    REFERENCES semesters(id)
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (teacher_id)
+    REFERENCES teachers(id)
+    ON DELETE SET NULL,
+
+    FOREIGN KEY (room_id)
+    REFERENCES rooms(id)
+    ON DELETE SET NULL
+);
+
+-- ==========================================
+-- SCHEDULES
+-- ==========================================
+CREATE TABLE schedules (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    class_id INT,
+
+    day_of_week VARCHAR(20),
+    start_time TIME,
+    end_time TIME,
+
+    FOREIGN KEY (class_id)
+    REFERENCES classes(id)
     ON DELETE CASCADE
 );
 
@@ -85,10 +181,17 @@ CREATE TABLE classes (
 -- ==========================================
 CREATE TABLE enrollments (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     student_id INT,
     class_id INT,
+
+    status ENUM(
+        'active',
+        'completed',
+        'dropped'
+    ) DEFAULT 'active',
+
     enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('active', 'completed', 'dropped') DEFAULT 'active',
 
     UNIQUE(student_id, class_id),
 
@@ -106,32 +209,32 @@ CREATE TABLE enrollments (
 -- ==========================================
 CREATE TABLE attendance (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     enrollment_id INT,
+    schedule_id INT,
+
     attendance_date DATE NOT NULL,
-    status ENUM('present', 'absent', 'late') NOT NULL,
+
+    status ENUM(
+        'present',
+        'absent',
+        'late'
+    ) NOT NULL,
+
     note VARCHAR(255),
 
-    UNIQUE(enrollment_id, attendance_date),
+    UNIQUE(
+        enrollment_id,
+        schedule_id,
+        attendance_date
+    ),
 
     FOREIGN KEY (enrollment_id)
     REFERENCES enrollments(id)
-    ON DELETE CASCADE
-);
+    ON DELETE CASCADE,
 
--- ==========================================
--- GRADES
--- ==========================================
-CREATE TABLE grades (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    enrollment_id INT,
-    assignment_type VARCHAR(50),
-    score DECIMAL(5,2),
-    max_score DECIMAL(5,2),
-    graded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    note VARCHAR(255),
-
-    FOREIGN KEY (enrollment_id)
-    REFERENCES enrollments(id)
+    FOREIGN KEY (schedule_id)
+    REFERENCES schedules(id)
     ON DELETE CASCADE
 );
 
@@ -140,12 +243,16 @@ CREATE TABLE grades (
 -- ==========================================
 CREATE TABLE assignments (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     class_id INT,
     teacher_id INT,
+
     title VARCHAR(200) NOT NULL,
     description TEXT,
+
     deadline DATETIME NOT NULL,
     max_score DECIMAL(5,2),
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (class_id)
@@ -162,10 +269,14 @@ CREATE TABLE assignments (
 -- ==========================================
 CREATE TABLE submissions (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     assignment_id INT,
     student_id INT,
+
     file_url VARCHAR(255),
+
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
     score DECIMAL(5,2),
 
     UNIQUE(assignment_id, student_id),
@@ -180,13 +291,64 @@ CREATE TABLE submissions (
 );
 
 -- ==========================================
+-- EXAMS
+-- ==========================================
+CREATE TABLE exams (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    class_id INT,
+
+    exam_name VARCHAR(100),
+    exam_date DATE,
+
+    max_score DECIMAL(5,2),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (class_id)
+    REFERENCES classes(id)
+    ON DELETE CASCADE
+);
+
+-- ==========================================
+-- EXAM RESULTS
+-- ==========================================
+CREATE TABLE exam_results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    exam_id INT,
+    student_id INT,
+
+    score DECIMAL(5,2),
+
+    UNIQUE(exam_id, student_id),
+
+    FOREIGN KEY (exam_id)
+    REFERENCES exams(id)
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (student_id)
+    REFERENCES students(id)
+    ON DELETE CASCADE
+);
+
+-- ==========================================
 -- NOTIFICATIONS
 -- ==========================================
 CREATE TABLE notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     user_id INT,
-    type VARCHAR(50),
+
+    type ENUM(
+        'assignment',
+        'attendance',
+        'exam',
+        'general'
+    ),
+
     message TEXT NOT NULL,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (user_id)
@@ -199,13 +361,21 @@ CREATE TABLE notifications (
 -- ==========================================
 CREATE TABLE leave_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
+
     student_id INT,
     class_id INT,
     teacher_id INT,
+
     reason TEXT NOT NULL,
+
     leave_date DATE NOT NULL,
-    status ENUM('pending', 'approved', 'rejected')
-    DEFAULT 'pending',
+
+    status ENUM(
+        'pending',
+        'approved',
+        'rejected'
+    ) DEFAULT 'pending',
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (student_id)
@@ -220,115 +390,3 @@ CREATE TABLE leave_requests (
     REFERENCES teachers(id)
     ON DELETE SET NULL
 );
-
--- ==========================================
--- SEED DATA
--- ==========================================
-
--- USERS
-INSERT INTO users (username, password_hash, role) VALUES
-('admin', 'admin123', 'admin'),
-('teacher1', 'teacher123', 'teacher'),
-('teacher2', 'teacher123', 'teacher'),
-('student1', 'student123', 'student'),
-('student2', 'student123', 'student'),
-('student3', 'student123', 'student');
-
--- STUDENTS
-INSERT INTO students
-(user_id, student_code, full_name, dob, major, contact, address)
-VALUES
-(4, 'SV001', 'Nguyen Van A', '2000-01-15',
-'Information Technology', '0123456789', 'Ha Noi'),
-
-(5, 'SV002', 'Tran Thi B', '2001-05-20',
-'Business Administration', '0987654321', 'Hai Phong'),
-
-(6, 'SV003', 'Le Van C', '2002-10-10',
-'Computer Science', '0112233445', 'Da Nang');
-
--- TEACHERS
-INSERT INTO teachers
-(user_id, teacher_code, full_name, department, contact)
-VALUES
-(2, 'GV001', 'Dr. Pham D', 'Computer Science', '0999888777'),
-(3, 'GV002', 'Prof. Hoang E', 'Mathematics', '0888777666');
-
--- COURSES
-INSERT INTO courses
-(course_code, course_name, credits, teacher_id)
-VALUES
-('DB101', 'Database Systems', 3, 1),
-('MATH201', 'Calculus', 4, 2);
-
--- CLASSES
-INSERT INTO classes
-(class_name, course_id, room, schedule)
-VALUES
-('DBS_A1', 1, 'A101', 'Monday 08:00-10:00'),
-('CAL_B1', 2, 'B202', 'Wednesday 13:00-15:00');
-
--- ENROLLMENTS
-INSERT INTO enrollments
-(student_id, class_id)
-VALUES
-(1, 1),
-(2, 1),
-(3, 2);
-
--- ATTENDANCE
-INSERT INTO attendance
-(enrollment_id, attendance_date, status, note)
-VALUES
-(1, '2026-05-01', 'present', 'On time'),
-(2, '2026-05-01', 'absent', 'Sick'),
-(3, '2026-05-03', 'late', 'Traffic');
-
--- GRADES
-INSERT INTO grades
-(enrollment_id, assignment_type, score, max_score, note)
-VALUES
-(1, 'Midterm', 8.5, 10, 'Good'),
-(2, 'Midterm', 7.0, 10, 'Average'),
-(3, 'Midterm', 9.0, 10, 'Excellent');
-
--- ASSIGNMENTS
-INSERT INTO assignments
-(class_id, teacher_id, title, description, deadline, max_score)
-VALUES
-(1, 1,
-'SQL Query Practice',
-'Write SQL queries for the database schema',
-'2026-05-30 23:59:59',
-10),
-
-(2, 2,
-'Calculus Exercises',
-'Solve exercises 1-10',
-'2026-06-05 23:59:59',
-10);
-
--- SUBMISSIONS
-INSERT INTO submissions
-(assignment_id, student_id, file_url, score)
-VALUES
-(1, 1, '/uploads/student1_hw.pdf', 9.0),
-(1, 2, '/uploads/student2_hw.pdf', 8.0);
-
--- NOTIFICATIONS
-INSERT INTO notifications
-(user_id, type, message)
-VALUES
-(4, 'assignment',
-'Reminder: SQL assignment deadline tomorrow'),
-
-(5, 'attendance',
-'You were absent from Database Systems');
-
--- LEAVE REQUESTS
-INSERT INTO leave_requests
-(student_id, class_id, teacher_id, reason, leave_date, status)
-VALUES
-(1, 1, 1, 'Sick leave', '2026-05-10', 'approved'),
-
-(2, 1, 1, 'Family emergency', '2026-05-12', 'pending');
