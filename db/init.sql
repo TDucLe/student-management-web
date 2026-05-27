@@ -7,7 +7,10 @@ USE student_management;
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    password_reset_token VARCHAR(255) NULL,
+    password_reset_expires DATETIME NULL,
 
     role ENUM(
         'admin',
@@ -166,14 +169,19 @@ CREATE TABLE schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
     class_id INT,
+    room_id INT NULL,
 
-    day_of_week VARCHAR(20),
-    start_time TIME,
-    end_time TIME,
+    day_of_week VARCHAR(20) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
 
     FOREIGN KEY (class_id)
     REFERENCES classes(id)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (room_id)
+    REFERENCES rooms(id)
+    ON DELETE SET NULL
 );
 
 -- ==========================================
@@ -221,7 +229,7 @@ CREATE TABLE attendance (
         'late'
     ) NOT NULL,
 
-    note VARCHAR(255),
+    teacher_comment TEXT,
 
     UNIQUE(
         enrollment_id,
