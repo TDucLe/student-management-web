@@ -1,3 +1,4 @@
+```sql
 CREATE DATABASE IF NOT EXISTS student_management;
 USE student_management;
 
@@ -281,8 +282,6 @@ CREATE TABLE submissions (
     assignment_id INT,
     student_id INT,
 
-    file_url VARCHAR(255),
-
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     score DECIMAL(5,2),
@@ -295,6 +294,26 @@ CREATE TABLE submissions (
 
     FOREIGN KEY (student_id)
     REFERENCES students(id)
+    ON DELETE CASCADE
+);
+
+-- ==========================================
+-- SUBMISSION FILES
+-- ==========================================
+CREATE TABLE submission_files (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    submission_id INT NOT NULL,
+
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    file_type VARCHAR(100),
+    file_size INT,
+
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (submission_id)
+    REFERENCES submissions(id)
     ON DELETE CASCADE
 );
 
@@ -337,6 +356,79 @@ CREATE TABLE exam_results (
 
     FOREIGN KEY (student_id)
     REFERENCES students(id)
+    ON DELETE CASCADE
+);
+
+-- ==========================================
+-- GRADE CATEGORIES
+-- ==========================================
+CREATE TABLE grade_categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    class_id INT NOT NULL,
+
+    category_name VARCHAR(100) NOT NULL,
+
+    percentage DECIMAL(5,2) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (class_id)
+    REFERENCES classes(id)
+    ON DELETE CASCADE
+);
+
+-- ==========================================
+-- STUDENT GRADES
+-- ==========================================
+CREATE TABLE student_grades (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    enrollment_id INT NOT NULL,
+
+    grade_category_id INT NOT NULL,
+
+    score DECIMAL(5,2) NOT NULL,
+
+    teacher_comment TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE(enrollment_id, grade_category_id),
+
+    FOREIGN KEY (enrollment_id)
+    REFERENCES enrollments(id)
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (grade_category_id)
+    REFERENCES grade_categories(id)
+    ON DELETE CASCADE
+);
+
+-- ==========================================
+-- GPA RECORDS
+-- ==========================================
+CREATE TABLE gpa_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    student_id INT NOT NULL,
+
+    semester_id INT NOT NULL,
+
+    gpa DECIMAL(3,2) NOT NULL,
+
+    ranking VARCHAR(50),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE(student_id, semester_id),
+
+    FOREIGN KEY (student_id)
+    REFERENCES students(id)
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (semester_id)
+    REFERENCES semesters(id)
     ON DELETE CASCADE
 );
 
@@ -398,3 +490,4 @@ CREATE TABLE leave_requests (
     REFERENCES teachers(id)
     ON DELETE SET NULL
 );
+```
