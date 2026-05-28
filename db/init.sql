@@ -1,4 +1,3 @@
-```sql
 CREATE DATABASE IF NOT EXISTS student_management;
 USE student_management;
 
@@ -12,7 +11,6 @@ CREATE TABLE users (
     email VARCHAR(100) UNIQUE NOT NULL,
 
     password_hash CHAR(255) NOT NULL,
-
     password_reset_token VARCHAR(255) NULL,
     password_reset_expires DATETIME NULL,
 
