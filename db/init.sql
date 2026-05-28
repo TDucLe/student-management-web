@@ -11,6 +11,7 @@ CREATE TABLE users (
     email VARCHAR(100) UNIQUE NOT NULL,
 
     password_hash CHAR(255) NOT NULL,
+
     password_reset_token VARCHAR(255) NULL,
     password_reset_expires DATETIME NULL,
 
@@ -594,4 +595,3 @@ CREATE TABLE leave_requests (
     ON UPDATE CASCADE
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
