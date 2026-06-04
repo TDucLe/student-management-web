@@ -7,7 +7,10 @@ USE student_management;
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    password_reset_token VARCHAR(255) NULL,
+    password_reset_expires DATETIME NULL,
 
     role ENUM(
         'admin',
@@ -30,6 +33,8 @@ CREATE TABLE semesters (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
     name VARCHAR(50) NOT NULL,
+    term_type ENUM('semester1', 'semester2', 'summer') NOT NULL DEFAULT 'semester1',
+    school_year VARCHAR(20) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
 
@@ -166,14 +171,19 @@ CREATE TABLE schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
     class_id INT,
+    room_id INT NULL,
 
-    day_of_week VARCHAR(20),
-    start_time TIME,
-    end_time TIME,
+    day_of_week VARCHAR(20) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
 
     FOREIGN KEY (class_id)
     REFERENCES classes(id)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (room_id)
+    REFERENCES rooms(id)
+    ON DELETE SET NULL
 );
 
 -- ==========================================
@@ -205,6 +215,30 @@ CREATE TABLE enrollments (
 );
 
 -- ==========================================
+-- STUDENT GRADES (10% + 30% + 60%)
+-- ==========================================
+CREATE TABLE student_grades (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    enrollment_id INT NOT NULL UNIQUE,
+
+    regular_score DECIMAL(4,2) NULL,
+    midterm_score DECIMAL(4,2) NULL,
+    final_score DECIMAL(4,2) NULL,
+
+    total_score DECIMAL(4,2) NULL,
+    letter_grade VARCHAR(2) NULL,
+    gpa DECIMAL(4,2) NULL,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (enrollment_id)
+    REFERENCES enrollments(id)
+    ON DELETE CASCADE
+);
+
+-- ==========================================
 -- ATTENDANCE
 -- ==========================================
 CREATE TABLE attendance (
@@ -221,7 +255,7 @@ CREATE TABLE attendance (
         'late'
     ) NOT NULL,
 
-    note VARCHAR(255),
+    teacher_comment TEXT,
 
     UNIQUE(
         enrollment_id,
