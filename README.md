@@ -1,286 +1,198 @@
-# Student Management System
-
-## 📂 Project Structure
-
-```bash
-student-management-system/
-# Student Management System
-
-Hệ thống quản lý học sinh, giáo viên, môn học, lớp học, điểm danh, điểm số, lịch học/lịch dạy và thống kê học tập.
+# 🎓 Student Management System
+## Hệ thống Quản lý Sinh viên — Trường Quốc tế, ĐHQGHN
 
 ---
-# Student Management System
 
-## 📂 Project Structure (Tree + Notes)
+## 📋 Giới thiệu
 
-```bash
-student-management-system/
+Hệ thống quản lý sinh viên toàn diện với 3 vai trò: **Admin**, **Teacher**, **Student**. Hỗ trợ quản lý môn học, lớp học, điểm danh, điểm số, lịch học, bài tập, đơn xin nghỉ, thông báo và thống kê.
+
+**Công nghệ**: PHP 8+ · MySQL · HTML/CSS/JS · Chart.js · XAMPP
+
+---
+
+## 📂 Cấu trúc dự án
+
+```
+student-management-web/
 │
-├── db/                  
-│   ├── db.php              # File PHP kết nối MySQL
-│   └── init.sql            # Script tạo bảng: users, students, teachers, courses, classes,
-│                           # attendance, grades, schedules, assignments, submissions,
-│                           # notifications, leave_requests, stats
+├── config.php                 # Bootstrap: DB, session, i18n, security, auth
 │
-├── auth/                
-│   ├── register.php        # Form đăng ký tài khoản mới (student/teacher/admin)
-│   ├── login.php           # Form đăng nhập
-│   ├── logout.php          # Đăng xuất
-│   └── auth_helper.php     # Hàm tiện ích: kiểm tra role, session, redirect
+├── db/
+│   ├── db.php                 # Kết nối MySQL (PDO + mysqli)
+│   └── init.sql               # Script tạo bảng
 │
-├── admin/                  # Module Admin
-│   ├── dashboard.php       # Trang tổng quan admin: thống kê toàn hệ thống
-│   ├── users_manage.php    # Quản lý tài khoản (CRUD student, teacher, admin)
-│   ├── courses_manage.php  # Quản lý môn học
-│   ├── classes_manage.php  # Quản lý lớp học
-│   ├── attendance_manage.php # Quản lý dữ liệu điểm danh
-│   ├── grades_manage.php   # Quản lý bảng điểm toàn hệ thống
-│   ├── assignments_manage.php # Quản lý bài tập (xem, xóa, sửa)
-│   ├── leave_manage.php    # Quản lý đơn xin nghỉ học (CRUD)
-│   └── stats_manage.php    # Thống kê tổng hợp toàn hệ thống
+├── auth/
+│   ├── login.php              # Đăng nhập (CSRF, rate-limit, session regeneration)
+│   ├── register.php           # Đăng ký (chỉ student, CSRF)
+│   ├── forgot_password.php    # Thông tin liên hệ phòng QL
+│   ├── reset_password.php     # Đặt lại mật khẩu (token-based)
+│   ├── logout.php             # Đăng xuất (xóa session)
+│   └── auth_helper.php        # Hàm tiện ích: role check, nav, render
 │
-├── teacher/             
-│   ├── courses.php         # Quản lý môn học do giáo viên phụ trách
-│   ├── classes.php         # Quản lý lớp học
-│   ├── attendance.php      # Điểm danh sinh viên trong lớp
-│   ├── grades.php          # Nhập điểm cho sinh viên
-│   ├── schedule.php        # Lịch dạy cá nhân
-│   ├── assignments.php     # Giao bài tập
-│   └── leave_approval.php  # Giáo viên duyệt đơn xin nghỉ học
+├── includes/
+│   ├── i18n.php               # Hệ thống đa ngôn ngữ (VI/EN)
+│   ├── security_helper.php    # CSRF token, brute-force rate limiting
+│   ├── grades_helper.php      # Tính điểm GPA
+│   ├── notification_helper.php # Gửi thông báo tự động
+│   └── notif_seen.php         # AJAX endpoint đánh dấu đã đọc thông báo
 │
-├── student/             
-│   ├── profile.php         # Hồ sơ cá nhân sinh viên
-│   ├── courses_view.php    # Xem môn học đã đăng ký
-│   ├── classes_view.php    # Xem lớp học đã tham gia
-│   ├── attendance_view.php # Xem lịch sử điểm danh
-│   ├── grades_view.php     # Xem bảng điểm cá nhân
-│   ├── schedule_view.php   # Lịch học cá nhân
-│   ├── assignments_view.php# Xem và nộp bài tập
-│   ├── leave_request.php   # Sinh viên gửi đơn xin nghỉ học
-│   └── leave_status.php    # Sinh viên xem trạng thái đơn nghỉ học
+├── admin/
+│   ├── dashboard.php          # Tổng quan: thống kê, biểu đồ
+│   ├── users_manage.php       # Quản lý tài khoản (CRUD, phân role)
+│   ├── students_manage.php    # Quản lý hồ sơ sinh viên
+│   ├── teachers_manage.php    # Quản lý hồ sơ giảng viên
+│   ├── courses_manage.php     # Quản lý môn học
+│   ├── classes_manage.php     # Quản lý lớp học
+│   ├── class_detail.php       # Chi tiết lớp: TKB, sinh viên, điểm
+│   ├── semesters_manage.php   # Quản lý kỳ học
+│   ├── rooms_manage.php       # Quản lý phòng học
+│   ├── attendance_manage.php  # Xem/xóa điểm danh (lọc kỳ, lớp, ngày)
+│   ├── grades_manage.php      # Xem/xóa điểm (lọc kỳ, lớp)
+│   ├── assignments_manage.php # Quản lý bài tập
+│   ├── leave_manage.php       # Duyệt đơn xin nghỉ
+│   └── stats_manage.php       # Thống kê toàn hệ thống
 │
-├── stats/               
-│   ├── student_stats.php   # Thống kê cá nhân: GPA, chuyên cần, số môn hoàn thành
-│   └── teacher_stats.php   # Thống kê lớp học: GPA trung bình, chuyên cần, số lượng sinh viên
+├── teacher/
+│   ├── courses.php            # Môn học giảng viên phụ trách
+│   ├── classes.php            # Lớp học đang dạy
+│   ├── class_students.php     # Danh sách SV trong lớp
+│   ├── attendance.php         # Điểm danh (lọc ngày)
+│   ├── grades.php             # Nhập điểm TX/GK/CK
+│   ├── schedule.php           # Lịch dạy cá nhân
+│   ├── assignments.php        # Giao bài tập, chấm điểm
+│   └── leave_approval.php     # Duyệt đơn xin nghỉ
 │
-├── notifications/       
-│   ├── notify_absence.php  # Nhắc nhở sinh viên nghỉ học nhiều buổi
-│   └── notify_assignment.php # Nhắc nhở hạn nộp bài tập
+├── student/
+│   ├── profile.php            # Hồ sơ cá nhân
+│   ├── courses_view.php       # Môn học đã đăng ký
+│   ├── classes_view.php       # Lớp học tham gia
+│   ├── attendance_view.php    # Thống kê điểm danh (theo lớp, biểu đồ)
+│   ├── grades_view.php        # Bảng điểm cá nhân
+│   ├── schedule_view.php      # Lịch học
+│   ├── assignments_view.php   # Xem & nộp bài tập
+│   ├── leave_request.php      # Gửi đơn xin nghỉ
+│   └── leave_status.php       # Theo dõi trạng thái đơn
 │
-├── frontend/            
-│   ├── css/
-│   │   └── style.css       # Giao diện chính
+├── lang/
+│   ├── vi.php                 # Bản dịch tiếng Việt
+│   └── en.php                 # Bản dịch tiếng Anh
+│
+├── frontend/
+│   ├── css/style.css          # Giao diện chính (dark theme, responsive)
 │   ├── js/
-│   │   ├── validation.js   # Kiểm tra form
-│   │   ├── ajax.js         # Xử lý AJAX call
-│   │   └── chart.js        # Biểu đồ thống kê (Chart.js)
+│   │   ├── ui.js              # Toggle thông báo, animation, mobile sidebar
+│   │   ├── validation.js      # Validate form
+│   │   ├── ajax.js            # AJAX calls
+│   │   └── chart.js           # Biểu đồ Chart.js
 │   └── templates/
-│       ├── header.php      # Header chung
-│       ├── footer.php      # Footer chung
-│       └── dashboard.php   # Dashboard hiển thị thống kê, lịch, thông báo
+│       ├── header.php         # Header: sidebar, topbar, CSRF, i18n
+│       └── footer.php         # Footer + notification dropdown
 │
-├── index.php               # Trang chính, điều hướng theo role (admin/teacher/student)
-├── README.md               # Hướng dẫn setup + phân công công việc
-└── .gitignore
-    
-
----------------------------------------------------------------------------------
-- **Admin**: Quản lý người dùng, môn học, lớp học, xem thống kê toàn hệ thống.  
-- **Teacher**: Quản lý môn học, lớp học, điểm danh, nhập điểm, lịch dạy, giao bài tập, xem thống kê lớp.  
-- **Student**: Xem hồ sơ, môn học, lớp học, điểm danh, điểm số, lịch học, nộp bài tập, nhận thông báo.  
-- **Frontend**: Hiển thị dashboard, biểu đồ thống kê, lịch học/lịch dạy, thông báo nhắc nhở.  
-+---------------------------------------------------+
-|         Admin                                     |
-+---------------------------------------------------+
-| Menu: Users | Courses | Classes | Statistics      |
-+---------------------------------------------------+
-| Tổng quan:                                        |
-| - Số lượng sinh viên:                             |
-| - Số lượng giáo viên:                             |
-| - Số môn học:                                     |
-| - GPA trung bình toàn hệ thống:                   |
-+---------------------------------------------------+
-| Biểu đồ:                                          |
-| - Pie chart: Tỷ lệ chuyên cần toàn hệ thống       |
-| - Bar chart: GPA trung bình theo khoa             |
-+---------------------------------------------------+
-| Calendar: Lịch học/lịch dạy toàn hệ thống         |
-+---------------------------------------------------+
-| Notifications:                                    |
-| - Danh sách sinh viên nghỉ học nhiều              |
-| - Thống kê bài tập chưa nộp                       |
-+---------------------------------------------------+
-
------
-
-+---------------------------------------------------+
-|         Teacher Dashboard                         |
-+---------------------------------------------------+
-| Menu: My Courses | My Classes | Attendance | Stats|
-+---------------------------------------------------+
-| Thông tin cá nhân:                                |
-| - Tên: Nguyễn Văn A                               |
-| - Bộ môn: CNTT                                    |
-+---------------------------------------------------+
-| Lịch dạy:                                         |
-| - Calendar hiển thị lịch dạy theo tuần/tháng      |
-+---------------------------------------------------+
-| Thống kê lớp học:                                 |
-| - GPA trung bình lớp                              |
-| - Tỷ lệ chuyên cần                                |
-| - Số lượng sinh viên tham gia                     |
-+---------------------------------------------------+
-| Bài tập:                                          |
-| - Danh sách bài tập đã giao                       |
-| - Deadline, số lượng sinh viên đã nộp             |
-+---------------------------------------------------+
-| Notifications:                                    |
-| - Nhắc nhở sinh viên chưa nộp bài                 |
-+---------------------------------------------------+
-
------------
-
-+---------------------------------------------------+
-|         Student Dashboard                         |
-+---------------------------------------------------+
-| Menu: Profile | Courses | Classes | Grades | Stats|
-+---------------------------------------------------+
-| Hồ sơ cá nhân:                                    |
-| - Tên: Trần Thị B                                 |
-| - Ngành: Kinh tế                                  |
-+---------------------------------------------------+
-| Lịch học:                                         |
-| - Calendar hiển thị lịch học theo tuần/tháng      |
-+---------------------------------------------------+
-| Thống kê cá nhân:                                 |
-| - GPA: 3.2                                        |
-| - Tỷ lệ chuyên cần: 85%                           |
-| - Số môn đã hoàn thành: 25                        |
-+---------------------------------------------------+
-| Bài tập:                                          |
-| - Danh sách bài tập được giao                     |
-| - Deadline, trạng thái nộp                        |
-+---------------------------------------------------+
-| Notifications:                                    |
-| - Popup/email nhắc nhở nghỉ học                   |
-| - Nhắc nhở hạn nộp bài tập                        |
-+---------------------------------------------------+
-
---------------------------------------------------------------------
-## 🗂 Các bảng trong Database & Chức năng
-
-### 1. **users**
-- **Chức năng**: Quản lý tài khoản đăng nhập hệ thống.
-- **Cột chính**: `id`, `username`, `password`, `role`
+├── index.php                  # Router: redirect theo role
+├── README.md                  # File này
+└── README_AUTH.md             # Chi tiết hệ thống xác thực & bảo mật
+```
 
 ---
 
-### 2. **students**
-- **Chức năng**: Lưu thông tin hồ sơ sinh viên.
-- **Cột chính**: `id`, `name`, `dob`, `major`, `contact`
+## 🔐 Bảo mật
+
+| Tính năng | Chi tiết |
+|-----------|----------|
+| **Mã hóa mật khẩu** | `PASSWORD_BCRYPT` (bcrypt hash) |
+| **Chống CSRF** | Token tự động inject vào mọi form POST |
+| **Chống Brute-force** | Khóa 15 phút sau 5 lần đăng nhập sai |
+| **Session Fixation** | `session_regenerate_id(true)` sau đăng nhập |
+| **SQL Injection** | PDO Prepared Statements toàn bộ |
+| **XSS** | `htmlspecialchars()` cho mọi output |
+| **Phân quyền** | Đăng ký mặc định student, chỉ admin gán role |
+| **Quên mật khẩu** | Hiện thông tin liên hệ Phòng QL Đào tạo |
 
 ---
 
-### 3. **teachers**
-- **Chức năng**: Lưu thông tin hồ sơ giáo viên.
-- **Cột chính**: `id`, `name`, `department`, `contact`
+## 🔔 Hệ thống thông báo
+
+Thông báo **tự động** khi:
+- GV giao bài tập mới → thông báo SV trong lớp
+- GV nhập/cập nhật điểm → thông báo từng SV
+- GV điểm danh (vắng/muộn) → thông báo SV
+- SV nộp bài → thông báo GV
+- GV chấm bài nộp → thông báo SV
+
+Badge đếm thông báo chưa đọc, tự ẩn khi đã xem (cookie-based).
 
 ---
 
-### 4. **courses**
-- **Chức năng**: Quản lý môn học.
-- **Cột chính**: `id`, `name`, `credits`, `teacher_id`
+## 🌐 Đa ngôn ngữ
+
+- Hỗ trợ **Tiếng Việt** và **English**
+- 2 nút chuyển đổi VI / EN trên topbar
+- Ngôn ngữ lưu trong `$_SESSION['lang']`, không bị reset khi thao tác
+- URL switch giữ nguyên tất cả query params
 
 ---
 
-### 5. **classes**
-- **Chức năng**: Quản lý lớp học (gắn với môn học).
-- **Cột chính**: `id`, `course_id`, `schedule`, `room`
+## 🗂 Database (13 bảng)
+
+| # | Bảng | Chức năng |
+|---|------|-----------|
+| 1 | `users` | Tài khoản: username, email, password_hash, role |
+| 2 | `students` | Hồ sơ sinh viên: mã SV, họ tên, ngày sinh |
+| 3 | `teachers` | Hồ sơ giảng viên: mã GV, họ tên, khoa |
+| 4 | `courses` | Môn học: mã môn, tên, số tín chỉ |
+| 5 | `semesters` | Kỳ học: tên, ngày bắt đầu/kết thúc |
+| 6 | `classes` | Lớp học: môn, GV, kỳ, mã lớp |
+| 7 | `enrollments` | Đăng ký lớp: SV ↔ Lớp |
+| 8 | `schedules` | Thời khóa biểu: ngày, giờ, phòng |
+| 9 | `rooms` | Phòng học: tên, sức chứa |
+| 10 | `attendance` | Điểm danh: trạng thái, ngày, nhận xét |
+| 11 | `student_grades` | Điểm: TX, giữa kỳ, cuối kỳ |
+| 12 | `assignments` | Bài tập: tiêu đề, deadline, điểm tối đa |
+| 13 | `submissions` | Bài nộp: file, điểm, thời gian |
+| 14 | `notifications` | Thông báo: loại, nội dung, thời gian |
+| 15 | `leave_requests` | Đơn xin nghỉ: lý do, trạng thái |
 
 ---
 
-### 6. **attendance**
-- **Chức năng**: Quản lý điểm danh sinh viên.
-- **Cột chính**: `id`, `class_id`, `student_id`, `status`, `date`
+## ⚙️ Cài đặt
+
+### Yêu cầu
+- XAMPP (PHP 8.0+, MySQL 5.7+)
+- Trình duyệt hiện đại
+
+### Bước 1: Clone/copy dự án
+```bash
+# Copy vào thư mục htdocs của XAMPP
+cp -r student-management-web/ C:/xampp/htdocs/Student_management/
+```
+
+### Bước 2: Tạo database
+```sql
+-- Mở phpMyAdmin hoặc MySQL CLI
+CREATE DATABASE student_management;
+-- Import file init.sql
+mysql -u root student_management < db/init.sql
+```
+
+### Bước 3: Cấu hình kết nối
+Sửa `db/db.php` nếu cần thay đổi thông tin kết nối.
+
+### Bước 4: Truy cập
+```
+http://localhost/Student_management/student-management-web/
+```
 
 ---
 
-### 7. **grades**
-- **Chức năng**: Quản lý bảng điểm sinh viên.
-- **Cột chính**: `id`, `student_id`, `course_id`, `grade`
+## 👥 Phân công
 
----
-
-### 8. **schedules**
-- **Chức năng**: Quản lý lịch học/lịch dạy.
-- **Cột chính**: `id`, `user_id`, `role`, `date`, `time`, `course_id`, `room`
-
----
-
-### 9. **assignments**
-- **Chức năng**: Quản lý bài tập được giao.
-- **Cột chính**: `id`, `course_id`, `teacher_id`, `title`, `description`, `deadline`
-
----
-
-### 10. **submissions**
-- **Chức năng**: Quản lý bài nộp của sinh viên.
-- **Cột chính**: `id`, `assignment_id`, `student_id`, `file_url`, `submitted_at`, `grade`
-
----
-
-### 11. **notifications**
-- **Chức năng**: Quản lý thông báo/nhắc nhở.
-- **Cột chính**: `id`, `user_id`, `type`, `message`, `date`
-
----
-
-### 12. **leave_requests** (Mới)
-- **Chức năng**: Quản lý đơn xin nghỉ học.
-- **Cột chính**:
-  - `id`: Khóa chính
-  - `student_id`: Sinh viên gửi đơn
-  - `class_id`: Lớp học liên quan
-  - `reason`: Lý do nghỉ
-  - `date`: Ngày xin nghỉ
-  - `status`: Trạng thái (pending/approved/rejected)
-  - `teacher_id`: Giáo viên duyệt đơn
-
----
-
-### 13. **stats**
-- **Chức năng**: Lưu dữ liệu thống 
-
-------------------------------------------------------------------
-
-- Đạt đen (DB)
-  - Thiết kế database 
-  - CRUD dữ liệu cho đơn xin nghỉ học  
-
-- Đạt đỏ (Auth & Admin) 
-  - Quản lý đăng nhập, đăng ký, phân quyền  
-  - Admin dashboard có thêm mục quản lý đơn xin nghỉ học  
-
-- Đạt m9 (Teacher Module) 
-  - Quản lý môn học, lớp học  
-  - Điểm danh, nhập điểm  
-  - Lịch dạy cá nhân  
-  - Giao và quản lý bài tập  
-  - Duyệt đơn xin nghỉ học  
-
-- Yến (Student Module) 
-  - Hồ sơ cá nhân, xem môn học, lớp học  
-  - Xem điểm danh, điểm số  
-  - Lịch học cá nhân  
-  - Nộp bài tập, xem bài tập  
-  - Gửi đơn xin nghỉ học, xem trạng thái  
-  - Nhận thông báo nghỉ học, hạn nộp bài  
-
-- Đức (Frontend/UI)  
-  - Thiết kế giao diện cho form xin nghỉ, duyệt nghỉ  
-  - Hiển thị biểu đồ thống kê  
-  - Hiển thị lịch học/lịch dạy dạng calendar  
-  - Hiển thị popup/email reminder cho nghỉ học, hạn nộp bài  
-  - Tổng hợp code, viết report 
+| Thành viên | Nhiệm vụ |
+|-----------|-----------|
+| Đạt đen | Database, CRUD đơn xin nghỉ |
+| Đạt đỏ | Auth, Admin module, bảo mật |
+| Đạt m9 | Teacher module |
+| Yến | Student module |
+| Đức | Frontend/UI, tổng hợp, report |
 
 ---

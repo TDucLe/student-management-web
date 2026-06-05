@@ -1,238 +1,215 @@
-# Authentication System - Student Management
+# 🔐 Authentication & Security — Student Management System
 
-## Overview
-A complete authentication system with registration, login, logout, password hashing, and secure password reset functionality for the Student Management System.
+## Tổng quan
 
-## Features
-✅ **User Registration** - Register as Student, Teacher, or Admin  
-✅ **Secure Login** - Username/Email and Password authentication  
-✅ **Forgot Password** - Secure password reset with token-based verification  
-✅ **Password Hashing** - Uses bcrypt for secure password storage  
-✅ **Session Management** - Persistent user sessions  
-✅ **Logout** - Secure session destruction  
-✅ **Role-Based Dashboard** - Different views for each user role  
-✅ **Responsive Design** - Mobile-friendly interface  
+Hệ thống xác thực và bảo mật đa lớp cho ứng dụng quản lý sinh viên, bao gồm đăng nhập, đăng ký, phân quyền, chống tấn công, và quản lý phiên.
 
-## Files Created/Modified
+---
 
-### Database
-- **init.sql** - Updated with email field and password_hash column
-  - Changed `password` → `password_hash`
-  - Added `email` field (unique)
-  - Added `password_reset_token` and `password_reset_expires`
-  - Added `created_at` timestamp
+## ✅ Tính năng bảo mật
 
-### Core Files
-1. **config.php** - Database connection and session configuration
-2. **register.php** - Registration form with validation
-3. **login.php** - Login form (supports both username and email)
-4. **forgot_password.php** - Password reset request form
-5. **reset_password.php** - Password reset form with token validation
-6. **logout.php** - Session cleanup
-7. **index.php** - Dashboard (role-based content)
+| # | Tính năng | Trạng thái | Mô tả |
+|---|-----------|:----------:|-------|
+| 1 | Mã hóa mật khẩu | ✅ | `password_hash()` với `PASSWORD_BCRYPT` |
+| 2 | CSRF Protection | ✅ | Token tự động inject vào mọi form POST |
+| 3 | Brute-force Protection | ✅ | Khóa tài khoản 15 phút sau 5 lần đăng nhập sai |
+| 4 | Session Fixation | ✅ | `session_regenerate_id(true)` sau đăng nhập |
+| 5 | SQL Injection | ✅ | PDO Prepared Statements toàn bộ |
+| 6 | XSS Protection | ✅ | `htmlspecialchars()` cho mọi output |
+| 7 | Phân quyền đăng ký | ✅ | Mặc định student, chỉ admin thay đổi role |
+| 8 | Quên mật khẩu | ✅ | Hiển thị thông tin liên hệ Phòng QL Đào tạo |
 
-## Setup Instructions
+---
 
-### 1. Database Setup
-Run the updated `init.sql` file:
-```sql
-mysql -u root < init.sql
+## 📁 File liên quan
+
+```
+auth/
+├── login.php              # Đăng nhập (CSRF + rate-limit + session regen)
+├── register.php           # Đăng ký (chỉ student, CSRF, validate username)
+├── forgot_password.php    # Thông tin liên hệ Phòng QL Đào tạo
+├── reset_password.php     # Đặt lại mật khẩu (token 1h)
+├── logout.php             # Xóa session
+└── auth_helper.php        # Core functions: role check, nav, render
+
+includes/
+├── security_helper.php    # CSRF token + brute-force rate limiting
+└── ...
 ```
 
-Or import via phpMyAdmin
+---
 
-### 2. Update Database Credentials (if needed)
-Edit `config.php` lines 2-4:
-```php
-$host = 'localhost';      // Your host
-$dbname = 'student_management'; // Your DB name
-$username = 'root';        // Your DB username
-$password = '';            // Your DB password
+## 🔑 Luồng đăng nhập
+
+```
+Người dùng → login.php
+    ├── Kiểm tra CSRF token
+    ├── Kiểm tra rate-limit (đã bị khóa?)
+    ├── Truy vấn DB (username hoặc email)
+    ├── password_verify()
+    │
+    ├── ❌ Sai → loginAttemptFailed() → hiện số lần còn lại
+    │          → 5 lần sai → khóa 15 phút
+    │
+    └── ✅ Đúng → session_regenerate_id(true)
+               → loginAttemptClear()
+               → Lưu session (user_id, role, username, email)
+               → Redirect → index.php → dashboard theo role
 ```
 
-## Usage
+---
 
-### Registration Flow
-1. Navigate to `http://localhost/Student%20Management/register.php`
-2. Fill in the form:
-   - **Username** - Unique username (will be checked against database)
-   - **Email** - Valid email address (must be unique)
-   - **Password** - At least 6 characters
-   - **Confirm Password** - Must match password
-   - **Role** - Select Student, Teacher, or Admin
-3. Click Register
+## 📝 Luồng đăng ký
 
-### Login Flow
-1. Navigate to `http://localhost/Student%20Management/login.php`
-2. Enter either:
-   - Username + Password, OR
-   - Email + Password
-3. Click Login
-4. You'll be redirected to the dashboard
-
-### Forgot Password Flow
-1. On login page, click **"Forgot your password?"** link
-2. Enter your registered email address
-3. A password reset link will be generated (valid for 1 hour)
-4. Click the reset link or copy it to your browser
-5. Enter your new password and confirm it
-6. Password has been reset - login with your new password
-
-### Dashboard
-- View your profile information
-- Role-specific features displayed
-- Logout button in top-right corner
-
-## Security Features
-
-### Password Hashing
-```php
-// During registration
-$password_hash = password_hash($password, PASSWORD_BCRYPT);
-
-// During login verification
-password_verify($password, $user['password_hash'])
+```
+Người dùng → register.php
+    ├── Kiểm tra CSRF token
+    ├── Validate: username (3-30 ký tự, a-z0-9_), email, password (≥6)
+    ├── Kiểm tra trùng username/email
+    │
+    └── ✅ Hợp lệ → password_hash(PASSWORD_BCRYPT)
+               → INSERT users (role = 'student')    ← luôn là student
+               → Tạo record students
+               → Thông báo thành công
 ```
 
-### Password Reset Security
-- Token-based reset with 1-hour expiration
-- Cryptographically secure token generation (`random_bytes()`)
-- Tokens are cleared after successful password change
-- Reset link is one-time use only
+> ⚠️ **Bảo mật**: Người dùng **không thể** tự chọn role admin/teacher khi đăng ký. Chỉ admin có quyền thay đổi role qua `admin/users_manage.php`.
 
-### Session Protection
-- Requires login for dashboard access
-- Redirects to login if session expires
-- Session variables stored server-side only
-- Secure logout with session destruction
+---
 
-### Input Validation
-- Username/Email validation
-- Password strength checks (min 6 characters)
-- Email format validation
-- SQL injection protection (PDO prepared statements)
-- XSS protection (htmlspecialchars)
-- CSRF protection ready for implementation
+## 🔒 Quên mật khẩu
 
-## Database Schema
+Thay vì gửi email (không có SMTP trên localhost), trang `forgot_password.php` hiển thị **thông tin liên hệ Phòng Quản lý Đào tạo**:
 
-```sql
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'teacher', 'student') NOT NULL,
-    password_reset_token VARCHAR(255),
-    password_reset_expires DATETIME,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+- 🏢 Phòng Quản lý Đào tạo
+- 📍 144 Xuân Thủy, Cầu Giấy, Hà Nội
+- 📞 (024) 3754 7461
+- ✉️ info@is.vnu.edu.vn
+- 🕐 T2 – T6, 8:00 – 17:00
 
-## API Functions (in config.php)
+Kèm hướng dẫn chuẩn bị: mã SV/GV, CMND/CCCD, email đã đăng ký.
+
+---
+
+## 🛡️ CSRF Protection
+
+### Cách hoạt động
+
+1. **Server** tạo token random (`bin2hex(random_bytes(32))`) lưu trong `$_SESSION['csrf_token']`
+2. **Header template** xuất `<meta name="csrf-token">` + script JS auto-inject
+3. **JavaScript** tự động thêm `<input hidden name="csrf_token">` vào mọi form `method="POST"`
+4. **Server** validate token khi nhận POST → từ chối nếu không khớp
+
+### Functions (security_helper.php)
 
 ```php
-// Check if user is logged in
-isLoggedIn()
-
-// Get current user info
-getCurrentUser()
-
-// Require authentication
-requireLogin()
-
-// Require logout (redirect if logged in)
-requireLogout()
+csrfToken()      // Tạo/lấy token hiện tại
+csrfField()      // Xuất <input hidden> cho form
+csrfValidate()   // Validate token từ $_POST, regenerate sau validate
 ```
 
-## Testing Accounts
+---
 
-After registration, test with:
-- **Student Account**: username/email + password
-- **Teacher Account**: username/email + password
-- **Admin Account**: username/email + password
+## 🚫 Brute-force Protection
 
-## File Structure
-```
-Student Management/
-├── config.php              # Database & session config
-├── db.php                 # Original DB connection
-├── init.sql               # Updated database schema
-├── register.php           # Registration page
-├── login.php              # Login page
-├── forgot_password.php    # Forgot password page
-├── reset_password.php     # Password reset page
-├── logout.php             # Logout handler
-├── index.php              # Dashboard
-└── README_AUTH.md         # This file
-```
+### Cơ chế
 
-## Email Configuration
+- Đếm số lần đăng nhập sai theo identifier (username/email)
+- **5 lần sai** → khóa tài khoản **15 phút**
+- Hiển thị số lần thử còn lại cho người dùng
+- Tự động xóa counter khi đăng nhập thành công
 
-### For Development (Current Setup)
-The password reset generates a clickable link that you can copy and use immediately. No email server required.
-
-### For Production
-To enable email notifications, add a `send_email.php` file with mail configuration:
+### Functions (security_helper.php)
 
 ```php
-<?php
-function sendPasswordResetEmail($email, $reset_token) {
-    $reset_link = "https://yourdomain.com/reset_password.php?token=" . urlencode($reset_token);
-    
-    $subject = "Password Reset Request - Student Management System";
-    $message = "Click the link below to reset your password:\n\n";
-    $message .= $reset_link . "\n\n";
-    $message .= "This link expires in 1 hour.\n";
-    $message .= "If you didn't request this, please ignore this email.\n";
-    
-    $headers = "From: noreply@yourdomain.com\r\n";
-    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-    
-    return mail($email, $subject, $message, $headers);
-}
-?>
+loginRateLimitCheck($id)   // Kiểm tra có bị khóa không
+loginAttemptFailed($id)    // Ghi nhận lần sai, trả về số lần đã thử
+loginLockRemaining($id)    // Số giây còn khóa (0 = không khóa)
+loginAttemptClear($id)     // Xóa counter sau login thành công
 ```
 
-Then update `forgot_password.php` line 37 to:
+---
+
+## 🔄 Session Management
+
+### Bảo vệ Session
+
+| Kỹ thuật | Mô tả |
+|----------|-------|
+| `session_regenerate_id(true)` | Tạo session ID mới sau login, chống fixation |
+| `session_start()` trước i18n | Đảm bảo ngôn ngữ không bị reset |
+| Server-side storage | Session data lưu trên server, chỉ cookie ID |
+| `session_destroy()` | Logout xóa toàn bộ data |
+
+### Session Variables
+
 ```php
-sendPasswordResetEmail($email, $reset_token);
+$_SESSION['user_id']        // ID người dùng
+$_SESSION['username']       // Tên đăng nhập
+$_SESSION['email']          // Email
+$_SESSION['role']           // admin | teacher | student
+$_SESSION['lang']           // vi | en
+$_SESSION['csrf_token']     // Token CSRF hiện tại
 ```
 
-You may need to configure SMTP or mail() function on your server.
+---
 
-## Troubleshooting
+## 👤 Phân quyền (Role-Based Access)
 
-### "Connection failed" error
-- Check database credentials in config.php
-- Ensure MySQL server is running
-- Verify database name matches
+### 3 vai trò
 
-### "Username already taken"
-- Choose a different username
-- Email must also be unique
+| Role | Đăng ký | Quyền |
+|------|---------|-------|
+| `student` | ✅ Tự đăng ký | Xem thông tin cá nhân, điểm, lịch, nộp bài |
+| `teacher` | ❌ Admin tạo | Quản lý lớp, điểm danh, nhập điểm, giao bài |
+| `admin` | ❌ Admin tạo | Toàn quyền quản lý hệ thống |
 
-### Password not verifying
-- Password must be exactly as set during registration
-- Passwords are case-sensitive
+### Hàm kiểm tra quyền
 
-### "Invalid or expired reset link"
-- Reset links expire after 1 hour
-- Request a new password reset if link expired
-- Ensure you're using the correct reset link
+```php
+requireRole('admin')       // Chỉ admin được truy cập
+requireRole('teacher')     // Chỉ teacher
+requireRole('student')     // Chỉ student
+requireLogin()             // Phải đăng nhập
+requireLogout()            // Phải chưa đăng nhập (trang auth)
+```
 
-### Session not working
-- Ensure `session.save_path` is writable
-- Check browser cookie settings
-- Clear browser cookies if issues persist
+---
 
-## Next Steps
+## ⚙️ Cấu hình
 
-Extend the system by creating:
-- Email integration for password reset notifications
-- User profile edit page
-- Email verification on registration
-- Two-factor authentication
-- User role management admin panel
-- Password strength meter
-- Login attempt tracking and account lockout
+### Database (db/db.php)
+
+```php
+$host = 'localhost';
+$dbname = 'student_management';
+$username = 'root';
+$password = '';
+```
+
+### Bootstrap order (config.php)
+
+```
+1. Define APP_ROOT
+2. Require db.php        → kết nối DB
+3. session_start()       → khởi tạo session
+4. security_helper.php   → CSRF, rate limit
+5. i18n.php + init()     → đa ngôn ngữ
+6. grades_helper.php     → tính điểm
+7. notification_helper   → thông báo
+8. auth_helper.php       → role check, render
+```
+
+---
+
+## 🐛 Xử lý lỗi thường gặp
+
+| Lỗi | Nguyên nhân | Giải pháp |
+|-----|-------------|-----------|
+| "Session expired" | CSRF token hết hạn | Tải lại trang, thử lại |
+| "Account locked" | 5 lần đăng nhập sai | Đợi 15 phút |
+| Ngôn ngữ bị reset | `session_start()` chạy sau i18n | Đã sửa trong config.php |
+| Thông báo không hiện | `$notifications` không có trong footer | Dùng `$GLOBALS['__notifications']` |
+| Dropdown bị che | `backdrop-filter` tạo stacking context | Dropdown render ngoài body |
+
+---
