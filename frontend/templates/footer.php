@@ -22,5 +22,26 @@
         </footer>
     </div>
 </div>
+<!-- Notification dropdown: rendered outside all containers to avoid stacking/overflow issues -->
+<?php $__notifs = $GLOBALS['__notifications'] ?? []; ?>
+<div class="notif-dropdown" id="notifDropdown" hidden>
+    <div class="notif-dropdown-head">
+        🔔 <?= htmlspecialchars(t('notifications')) ?>
+        <?php if (!empty($__notifs)): ?>
+        <span class="notif-head-count"><?= count($__notifs) ?></span>
+        <?php endif; ?>
+    </div>
+    <div class="notif-dropdown-body">
+        <?php if (empty($__notifs)): ?>
+            <p class="notif-empty"><?= htmlspecialchars(t('no_notifications')) ?></p>
+        <?php else: foreach ($__notifs as $n): ?>
+            <div class="notif-item">
+                <span class="badge badge-<?= htmlspecialchars($n['type'] ?? 'general') ?>"><?= htmlspecialchars($n['type']) ?></span>
+                <p><?= htmlspecialchars($n['message']) ?></p>
+                <small><?= htmlspecialchars($n['created_at']) ?></small>
+            </div>
+        <?php endforeach; endif; ?>
+    </div>
+</div>
 </body>
 </html>

@@ -6,15 +6,40 @@
     var btn = document.getElementById('notifToggle');
     var panel = document.getElementById('notifDropdown');
     if (btn && panel) {
+      var badge = btn.querySelector('.notif-badge');
+      var seenSent = false;
+
       function positionPanel() {
         var rect = btn.getBoundingClientRect();
         panel.style.top = (rect.bottom + 8) + 'px';
-        panel.style.right = (window.innerWidth - rect.right) + 'px';
+        // Ensure dropdown doesn't overflow right edge
+        var right = window.innerWidth - rect.right;
+        if (right < 10) right = 10;
+        panel.style.right = right + 'px';
       }
+
+      function markAsSeen() {
+        if (seenSent) return;
+        seenSent = true;
+        // Hide badge immediately
+        if (badge) {
+          badge.style.display = 'none';
+          badge.remove();
+        }
+        // Tell server to update last_seen timestamp
+        var seenUrl = btn.getAttribute('data-seen-url');
+        if (seenUrl) {
+          fetch(seenUrl, { method: 'POST', credentials: 'same-origin' }).catch(function() {});
+        }
+      }
+
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         panel.hidden = !panel.hidden;
-        if (!panel.hidden) positionPanel();
+        if (!panel.hidden) {
+          positionPanel();
+          markAsSeen();
+        }
       });
       document.addEventListener('click', function () {
         panel.hidden = true;

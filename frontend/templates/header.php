@@ -10,10 +10,14 @@
 $cssPath = app_path('frontend/css/style.css');
 $role = htmlspecialchars($user['role'] ?? 'guest');
 $workspaceKey = 'workspace.' . ($user['role'] ?? 'guest');
-$notifCount = count($notifications);
+// $notifCount is already set in renderHeader() — counts only unread
 $lang = lang();
-$otherLang = $lang === 'vi' ? 'en' : 'vi';
-$langSwitchUrl = strtok($_SERVER['REQUEST_URI'] ?? '', '?') . '?lang=' . $otherLang;
+// Build lang switch URLs preserving all existing query params
+$currentParams = $_GET;
+$currentParams['lang'] = 'vi';
+$viUrl = strtok($_SERVER['REQUEST_URI'] ?? '', '?') . '?' . http_build_query($currentParams);
+$currentParams['lang'] = 'en';
+$enUrl = strtok($_SERVER['REQUEST_URI'] ?? '', '?') . '?' . http_build_query($currentParams);
 
 // Icon map for nav items
 $iconMap = [
@@ -43,7 +47,7 @@ $iconMap = [
     <script src="<?= htmlspecialchars(app_path('frontend/js/validation.js')) ?>" defer></script>
     <script src="<?= htmlspecialchars(app_path('frontend/js/ajax.js')) ?>" defer></script>
     <script src="<?= htmlspecialchars(app_path('frontend/js/chart.js')) ?>" defer></script>
-    <script src="<?= htmlspecialchars(app_path('frontend/js/ui.js')) ?>" defer></script>
+    <script src="<?= htmlspecialchars(app_path('frontend/js/ui.js')) ?>?v=<?= time() ?>" defer></script>
 </head>
 <body class="role-<?= $role ?> has-bg">
 <div class="bg-overlay" aria-hidden="true"></div>
@@ -74,25 +78,14 @@ $iconMap = [
             <h1 class="page-title"><?= htmlspecialchars($pageTitle) ?></h1>
             <div class="topbar-actions">
                 <div class="lang-switch">
-                    <a href="<?= htmlspecialchars($langSwitchUrl) ?>" class="btn btn-ghost btn-sm"><?= $lang === 'vi' ? '🌐 EN' : '🌐 VI' ?></a>
+                    <a href="<?= htmlspecialchars($viUrl) ?>" class="btn btn-sm <?= $lang === 'vi' ? 'btn-gold' : 'btn-ghost' ?>">🇻🇳 VI</a>
+                    <a href="<?= htmlspecialchars($enUrl) ?>" class="btn btn-sm <?= $lang === 'en' ? 'btn-gold' : 'btn-ghost' ?>">🇬🇧 EN</a>
                 </div>
                 <div class="notif-wrap">
-                    <button type="button" class="notif-btn" id="notifToggle" aria-label="<?= htmlspecialchars(t('notifications')) ?>">
+                    <button type="button" class="notif-btn" id="notifToggle" aria-label="<?= htmlspecialchars(t('notifications')) ?>" data-seen-url="<?= htmlspecialchars(app_path('includes/notif_seen.php')) ?>">
                         <span class="notif-icon">🔔</span>
                         <?php if ($notifCount > 0): ?><span class="notif-badge"><?= $notifCount ?></span><?php endif; ?>
                     </button>
-                    <div class="notif-dropdown" id="notifDropdown" hidden>
-                        <div class="notif-dropdown-head">🔔 <?= htmlspecialchars(t('notifications')) ?></div>
-                        <?php if (empty($notifications)): ?>
-                            <p class="notif-empty"><?= htmlspecialchars(t('no_notifications')) ?></p>
-                        <?php else: foreach ($notifications as $n): ?>
-                            <div class="notif-item">
-                                <span class="badge badge-<?= htmlspecialchars($n['type'] ?? 'general') ?>"><?= htmlspecialchars($n['type']) ?></span>
-                                <p><?= htmlspecialchars($n['message']) ?></p>
-                                <small><?= htmlspecialchars($n['created_at']) ?></small>
-                            </div>
-                        <?php endforeach; endif; ?>
-                    </div>
                 </div>
                 <span class="topbar-user">👤 <?= htmlspecialchars($user['username'] ?? '') ?></span>
                 <a href="<?= htmlspecialchars(app_path('auth/logout.php')) ?>" class="btn btn-gold btn-sm">🚪 <?= htmlspecialchars(t('logout')) ?></a>
