@@ -78,8 +78,8 @@ $iconMap = [
             <h1 class="page-title"><?= htmlspecialchars($pageTitle) ?></h1>
             <div class="topbar-actions">
                 <div class="lang-switch">
-                    <a href="<?= htmlspecialchars($viUrl) ?>" class="btn btn-sm <?= $lang === 'vi' ? 'btn-gold' : 'btn-ghost' ?>">🇻🇳 VI</a>
-                    <a href="<?= htmlspecialchars($enUrl) ?>" class="btn btn-sm <?= $lang === 'en' ? 'btn-gold' : 'btn-ghost' ?>">🇬🇧 EN</a>
+                    <a href="<?= htmlspecialchars($viUrl) ?>" class="btn btn-sm <?= $lang === 'vi' ? 'btn-gold' : 'btn-ghost' ?>">VI</a>
+                    <a href="<?= htmlspecialchars($enUrl) ?>" class="btn btn-sm <?= $lang === 'en' ? 'btn-gold' : 'btn-ghost' ?>">EN</a>
                 </div>
                 <div class="notif-wrap">
                     <button type="button" class="notif-btn" id="notifToggle" aria-label="<?= htmlspecialchars(t('notifications')) ?>" data-seen-url="<?= htmlspecialchars(app_path('includes/notif_seen.php')) ?>">

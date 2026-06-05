@@ -7,46 +7,61 @@
     var panel = document.getElementById('notifDropdown');
     if (btn && panel) {
       var badge = btn.querySelector('.notif-badge');
-      var seenSent = false;
+      var isOpen = false;
 
-      function positionPanel() {
+      function openPanel() {
         var rect = btn.getBoundingClientRect();
         panel.style.top = (rect.bottom + 8) + 'px';
-        // Ensure dropdown doesn't overflow right edge
         var right = window.innerWidth - rect.right;
         if (right < 10) right = 10;
         panel.style.right = right + 'px';
-      }
+        panel.style.display = 'flex';
+        isOpen = true;
 
-      function markAsSeen() {
-        if (seenSent) return;
-        seenSent = true;
-        // Hide badge immediately
+        // Mark as seen: hide badge + set cookie
         if (badge) {
           badge.style.display = 'none';
-          badge.remove();
         }
-        // Tell server to update last_seen timestamp
-        var seenUrl = btn.getAttribute('data-seen-url');
-        if (seenUrl) {
-          fetch(seenUrl, { method: 'POST', credentials: 'same-origin' }).catch(function() {});
-        }
+        var now = new Date();
+        var y = now.getFullYear();
+        var m = String(now.getMonth() + 1).padStart(2, '0');
+        var d = String(now.getDate()).padStart(2, '0');
+        var h = String(now.getHours()).padStart(2, '0');
+        var mi = String(now.getMinutes()).padStart(2, '0');
+        var s = String(now.getSeconds()).padStart(2, '0');
+        var ts = y + '-' + m + '-' + d + ' ' + h + ':' + mi + ':' + s;
+        document.cookie = 'notif_seen=' + encodeURIComponent(ts) + ';path=/;max-age=31536000;SameSite=Lax';
+      }
+
+      function closePanel() {
+        panel.style.display = 'none';
+        isOpen = false;
       }
 
       btn.addEventListener('click', function (e) {
+        e.preventDefault();
         e.stopPropagation();
-        panel.hidden = !panel.hidden;
-        if (!panel.hidden) {
-          positionPanel();
-          markAsSeen();
+        if (isOpen) {
+          closePanel();
+        } else {
+          openPanel();
         }
       });
-      document.addEventListener('click', function () {
-        panel.hidden = true;
+
+      // Close when clicking anywhere outside the panel (mousedown fires before click)
+      document.addEventListener('mousedown', function (e) {
+        if (isOpen && !panel.contains(e.target) && !btn.contains(e.target)) {
+          closePanel();
+        }
       });
-      panel.addEventListener('click', function (e) {
-        e.stopPropagation();
-      });
+
+      // Also close when scrolling in main-wrap
+      var mainWrap = document.querySelector('.main-wrap');
+      if (mainWrap) {
+        mainWrap.addEventListener('scroll', function () {
+          if (isOpen) closePanel();
+        });
+      }
     }
 
     // ── Card scroll entrance animation ──
@@ -61,6 +76,10 @@
     }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
     document.querySelectorAll('.card').forEach(function (card) {
+      // Skip cards inside grids that would cause layout shift when animated
+      if (card.closest('.stat-grid') || card.closest('.attendance-class-grid') || card.closest('.quick-grid') || card.classList.contains('stat-card') || card.classList.contains('attendance-class-card') || card.classList.contains('quick-tile')) {
+        return;
+      }
       card.style.opacity = '0';
       card.style.transform = 'translateY(20px)';
       card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
@@ -80,10 +99,10 @@
 
       toggler.addEventListener('click', function (e) {
         e.stopPropagation();
-        var isOpen = sidebar.getAttribute('data-open') === 'true';
-        sidebar.setAttribute('data-open', isOpen ? 'false' : 'true');
-        sidebar.style.transform = isOpen ? 'translateX(-100%)' : 'translateX(0)';
-        toggler.innerHTML = isOpen ? '☰' : '✕';
+        var isSideOpen = sidebar.getAttribute('data-open') === 'true';
+        sidebar.setAttribute('data-open', isSideOpen ? 'false' : 'true');
+        sidebar.style.transform = isSideOpen ? 'translateX(-100%)' : 'translateX(0)';
+        toggler.innerHTML = isSideOpen ? '☰' : '✕';
       });
     }
   });

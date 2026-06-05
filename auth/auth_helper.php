@@ -188,8 +188,8 @@ function renderHeader(string $pageTitle, ?array $user = null): void
         $notifications = fetchUserNotifications($pdo, $user['id']);
     }
 
-    // Count unread: notifications newer than last seen timestamp
-    $lastSeen = $_SESSION['notif_last_seen'] ?? '1970-01-01 00:00:00';
+    // Count unread: notifications newer than last seen timestamp (from cookie)
+    $lastSeen = isset($_COOKIE['notif_seen']) ? urldecode($_COOKIE['notif_seen']) : '1970-01-01 00:00:00';
     $notifCount = 0;
     foreach ($notifications as $n) {
         if ($n['created_at'] > $lastSeen) {

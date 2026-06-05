@@ -757,7 +757,7 @@ input:focus, select:focus, textarea:focus {
 .notif-dropdown {
   position: fixed;
   width: 380px; max-height: 480px;
-  display: flex; flex-direction: column;
+  display: none; flex-direction: column;
   background: var(--bg-glass-strong);
   backdrop-filter: blur(16px);
   border-radius: var(--radius);
