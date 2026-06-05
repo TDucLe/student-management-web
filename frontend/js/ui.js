@@ -6,9 +6,15 @@
     var btn = document.getElementById('notifToggle');
     var panel = document.getElementById('notifDropdown');
     if (btn && panel) {
+      function positionPanel() {
+        var rect = btn.getBoundingClientRect();
+        panel.style.top = (rect.bottom + 8) + 'px';
+        panel.style.right = (window.innerWidth - rect.right) + 'px';
+      }
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         panel.hidden = !panel.hidden;
+        if (!panel.hidden) positionPanel();
       });
       document.addEventListener('click', function () {
         panel.hidden = true;

@@ -18,6 +18,11 @@ if ($class_id && !verifyTeacherOwnsClass($pdo, $teacher_id, $class_id)) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_class_grades'])) {
     $class_id = (int) $_POST['class_id'];
     if (verifyTeacherOwnsClass($pdo, $teacher_id, $class_id)) {
+        // Get class name for notification
+        $cnStmt = $pdo->prepare('SELECT class_name FROM classes WHERE id = ?');
+        $cnStmt->execute([$class_id]);
+        $className = $cnStmt->fetchColumn() ?: '';
+
         foreach ($_POST['regular'] ?? [] as $enrollment_id => $regular) {
             $eid = (int) $enrollment_id;
             $reg = $regular !== '' ? (float) $regular : null;
@@ -25,6 +30,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_class_grades']))
             $fin = ($_POST['final'][$eid] ?? '') !== '' ? (float) $_POST['final'][$eid] : null;
             if ($reg !== null || $mid !== null || $fin !== null) {
                 saveStudentGrade($pdo, $eid, $reg, $mid, $fin);
+
+                // Notify the student
+                $stuStmt = $pdo->prepare('SELECT s.user_id FROM enrollments e JOIN students s ON e.student_id = s.id WHERE e.id = ?');
+                $stuStmt->execute([$eid]);
+                $stuRow = $stuStmt->fetch();
+                if ($stuRow && $stuRow['user_id']) {
+                    sendNotification($pdo, (int) $stuRow['user_id'], 'exam',
+                        (lang() === 'vi' ? "Điểm lớp $className đã được cập nhật" : "Grades updated for class $className")
+                    );
+                }
             }
         }
         flash('success', lang() === 'vi' ? 'Đã lưu điểm cả lớp.' : 'Grades saved.');

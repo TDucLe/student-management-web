@@ -47,4 +47,10 @@ return [
     'term.summer' => 'Kỳ hè',
     'gpa_chart_title' => 'GPA theo môn / kỳ',
     'fail_note' => 'Ngưỡng trượt: GPA < 4.00 (xếp loại F)',
+    'select_semester' => 'Chọn kỳ học',
+    'all_semesters' => '— Tất cả kỳ —',
+    'all_classes' => '— Tất cả lớp —',
+    'filter_hint' => 'Chọn kỳ học và lớp để xem danh sách',
+    'no_data' => 'Không có dữ liệu phù hợp.',
+    'showing_results' => 'Hiển thị :count kết quả',
 ];

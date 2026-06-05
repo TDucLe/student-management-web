@@ -47,4 +47,10 @@ return [
     'term.summer' => 'Summer',
     'gpa_chart_title' => 'GPA by course / semester',
     'fail_note' => 'Fail threshold: GPA < 4.00 (grade F)',
+    'select_semester' => 'Select semester',
+    'all_semesters' => '— All semesters —',
+    'all_classes' => '— All classes —',
+    'filter_hint' => 'Select a semester and class to view data',
+    'no_data' => 'No matching data found.',
+    'showing_results' => 'Showing :count results',
 ];

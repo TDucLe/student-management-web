@@ -31,6 +31,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
                 $url = 'uploads/' . $file_name;
                 $pdo->prepare('INSERT INTO submissions (assignment_id, student_id, file_url) VALUES (?, ?, ?)')
                     ->execute([$assignment_id, $student_id, $url]);
+
+                // Notify the teacher
+                $asmInfo = $pdo->prepare('SELECT a.title, a.class_id, s.full_name FROM assignments a, students s WHERE a.id = ? AND s.id = ?');
+                $asmInfo->execute([$assignment_id, $student_id]);
+                $ai = $asmInfo->fetch();
+                if ($ai) {
+                    notifyClassTeacher($pdo, (int) $ai['class_id'], 'assignment',
+                        (lang() === 'vi' ? "{$ai['full_name']} đã nộp bài: {$ai['title']}" : "{$ai['full_name']} submitted: {$ai['title']}")
+                    );
+                }
+
                 flash('success', 'Assignment submitted.');
             } else {
                 flash('error', 'Upload failed.');

@@ -127,7 +127,7 @@ $rooms = $pdo->query('SELECT id, room_number FROM rooms')->fetchAll();
 
 renderHeader($pageTitle, $user);
 ?>
-<p><a href="<?= htmlspecialchars(app_path('admin/classes_manage.php')) ?>">&larr; Back to classes</a></p>
+<p><a href="<?= htmlspecialchars(app_path('admin/classes_manage.php')) ?>" class="back-link">&larr; Back to classes</a></p>
 
 <div class="card">
     <h2>Class information</h2>

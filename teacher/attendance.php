@@ -33,6 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_class_attendance
     $sched_id = (int) $_POST['sched_id'];
     $date = $_POST['date'];
     if (verifyTeacherOwnsClass($pdo, $teacher_id, $class_id) && $sched_id > 0) {
+        // Get class name for notification
+        $cnStmt = $pdo->prepare('SELECT class_name FROM classes WHERE id = ?');
+        $cnStmt->execute([$class_id]);
+        $className = $cnStmt->fetchColumn() ?: '';
+
         $statuses = $_POST['status'] ?? [];
         $comments = $_POST['teacher_comment'] ?? [];
         foreach ($statuses as $enrollment_id => $status) {
@@ -42,6 +47,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_class_attendance
             $comment = trim($comments[$enrollment_id] ?? '');
             $pdo->prepare('INSERT INTO attendance (enrollment_id, schedule_id, attendance_date, status, teacher_comment) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status), teacher_comment=VALUES(teacher_comment)')
                 ->execute([(int) $enrollment_id, $sched_id, $date, $status, $comment]);
+
+            // Notify students marked absent or late
+            if ($status === 'absent' || $status === 'late') {
+                $stuStmt = $pdo->prepare('SELECT s.user_id FROM enrollments e JOIN students s ON e.student_id = s.id WHERE e.id = ?');
+                $stuStmt->execute([(int) $enrollment_id]);
+                $stuRow = $stuStmt->fetch();
+                if ($stuRow && $stuRow['user_id']) {
+                    $statusVi = $status === 'absent' ? 'vắng mặt' : 'đi muộn';
+                    $statusEn = $status === 'absent' ? 'absent' : 'late';
+                    sendNotification($pdo, (int) $stuRow['user_id'], 'attendance',
+                        (lang() === 'vi' ? "Điểm danh $date — Lớp $className: $statusVi" : "Attendance $date — Class $className: $statusEn")
+                    );
+                }
+            }
         }
         flash('success', lang() === 'vi' ? 'Đã lưu điểm danh cả lớp.' : 'Class attendance saved.');
     }

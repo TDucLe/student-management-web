@@ -8,11 +8,35 @@ $pageTitle = t('nav.assignments');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_asm'])) {
+        $classId = (int) $_POST['class_id'];
+        $title = trim($_POST['title']);
         $pdo->prepare('INSERT INTO assignments (class_id, teacher_id, title, description, deadline, max_score) VALUES (?, ?, ?, ?, ?, ?)')
-            ->execute([(int) $_POST['class_id'], $teacher_id, trim($_POST['title']), $_POST['desc'] ?? '', $_POST['deadline'], $_POST['max_score']]);
+            ->execute([$classId, $teacher_id, $title, $_POST['desc'] ?? '', $_POST['deadline'], $_POST['max_score']]);
+
+        // Notify all students in the class
+        $className = $pdo->prepare('SELECT class_name FROM classes WHERE id = ?');
+        $className->execute([$classId]);
+        $cn = $className->fetchColumn() ?: '';
+        notifyClassStudents($pdo, $classId, 'assignment',
+            (lang() === 'vi' ? "Bài tập mới: $title (Lớp $cn)" : "New assignment: $title (Class $cn)")
+        );
+
         flash('success', lang() === 'vi' ? 'Đã giao bài tập.' : 'Assignment published.');
     } elseif (isset($_POST['grade_sub'])) {
-        $pdo->prepare('UPDATE submissions SET score = ? WHERE id = ?')->execute([$_POST['score'], (int) $_POST['sub_id']]);
+        $subId = (int) $_POST['sub_id'];
+        $score = $_POST['score'];
+        $pdo->prepare('UPDATE submissions SET score = ? WHERE id = ?')->execute([$score, $subId]);
+
+        // Notify the student who submitted
+        $subInfo = $pdo->prepare('SELECT sub.student_id, a.title, s.user_id FROM submissions sub JOIN assignments a ON sub.assignment_id = a.id JOIN students s ON sub.student_id = s.id WHERE sub.id = ?');
+        $subInfo->execute([$subId]);
+        $si = $subInfo->fetch();
+        if ($si && $si['user_id']) {
+            sendNotification($pdo, (int) $si['user_id'], 'assignment',
+                (lang() === 'vi' ? "Bài tập \"{$si['title']}\" đã được chấm: $score điểm" : "Assignment \"{$si['title']}\" graded: $score pts")
+            );
+        }
+
         flash('success', lang() === 'vi' ? 'Đã chấm điểm.' : 'Graded.');
     }
     header('Location: assignments.php');
