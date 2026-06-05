@@ -43,6 +43,23 @@ $iconMap = [
     <title><?= htmlspecialchars($pageTitle) ?> — <?= htmlspecialchars(t('app_name')) ?></title>
     <link rel="stylesheet" href="<?= htmlspecialchars($cssPath) ?>">
     <style>:root { --bg-image: url('<?= htmlspecialchars($bgUrl) ?>'); }</style>
+    <meta name="csrf-token" content="<?= htmlspecialchars(csrfToken()) ?>">
+    <script>
+    // Auto-inject CSRF token into all POST forms
+    document.addEventListener('DOMContentLoaded', function() {
+        var token = document.querySelector('meta[name="csrf-token"]');
+        if (!token) return;
+        document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function(form) {
+            if (!form.querySelector('input[name="csrf_token"]')) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'csrf_token';
+                input.value = token.content;
+                form.appendChild(input);
+            }
+        });
+    });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
     <script src="<?= htmlspecialchars(app_path('frontend/js/validation.js')) ?>" defer></script>
     <script src="<?= htmlspecialchars(app_path('frontend/js/ajax.js')) ?>" defer></script>

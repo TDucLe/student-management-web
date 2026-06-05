@@ -1,56 +1,50 @@
 <?php
 require_once dirname(__DIR__) . '/config.php';
 requireLogout();
-
-$error = '';
-$reset_link = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
-    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Valid email is required.';
-    } else {
-        try {
-            $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL');
-            $stmt->execute([$email]);
-            if (!$stmt->fetch()) {
-                $error = 'Email not found.';
-            } else {
-                $token = bin2hex(random_bytes(32));
-                $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
-                $pdo->prepare('UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE email = ?')
-                    ->execute([$token, $expires, $email]);
-                $reset_link = app_path('auth/reset_password.php?token=' . urlencode($token));
-            }
-        } catch (PDOException $e) {
-            $error = 'Database error: ' . $e->getMessage();
-        }
-    }
-}
+$lang = lang();
 ?>
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="<?= htmlspecialchars($lang) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password</title>
+    <title><?= $lang === 'vi' ? 'Quên mật khẩu' : 'Forgot Password' ?> — <?= htmlspecialchars(t('app_name')) ?></title>
     <link rel="stylesheet" href="<?= htmlspecialchars(app_path('frontend/css/style.css')) ?>">
+    <style>:root { --bg-image: url('<?= htmlspecialchars(app_path('background.jpg')) ?>'); }</style>
 </head>
-<body class="role-guest auth-page">
+<body class="role-guest auth-page" style="background-image: var(--bg-image);">
 <div class="auth-card">
-    <h1>Reset password</h1>
-    <p class="subtitle">Enter your registered email</p>
-    <?php if ($error): ?><div class="alert alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
-    <?php if ($reset_link): ?>
-        <div class="alert alert-success">Reset link generated (dev mode):</div>
-        <p style="word-break:break-all;font-size:0.85rem"><a href="<?= htmlspecialchars($reset_link) ?>"><?= htmlspecialchars($reset_link) ?></a></p>
-    <?php else: ?>
-    <form method="POST" data-validate>
-        <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
-        <button type="submit" class="btn btn-primary btn-block">Send reset link</button>
-    </form>
-    <?php endif; ?>
-    <p class="subtitle" style="margin-top:16px"><a href="login.php">Back to login</a></p>
+    <div style="text-align:center;margin-bottom:20px;">
+        <img src="<?= htmlspecialchars(app_path('logo_slogan.png')) ?>" alt="Logo" style="height:60px;object-fit:contain;" onerror="this.style.display='none'">
+    </div>
+    <h1>🔑 <?= $lang === 'vi' ? 'Quên mật khẩu?' : 'Forgot password?' ?></h1>
+    <div class="alert alert-info" style="text-align:left;">
+        <p style="margin:0 0 12px;font-weight:600;">
+            <?= $lang === 'vi' ? 'Vui lòng liên hệ Phòng Quản lý để được hỗ trợ đặt lại mật khẩu:' : 'Please contact the Management Office to reset your password:' ?>
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+                <strong>🏢 <?= $lang === 'vi' ? 'Phòng Quản lý Đào tạo' : 'Academic Affairs Office' ?></strong>
+            </div>
+            <div>📍 <?= $lang === 'vi' ? '144 Xuân Thủy, Cầu Giấy, Hà Nội' : '144 Xuan Thuy, Cau Giay, Hanoi' ?></div>
+            <div>📞 (024) 3754 7461</div>
+            <div>✉️ info@is.vnu.edu.vn</div>
+            <div>🕐 <?= $lang === 'vi' ? 'Giờ làm việc: T2 – T6, 8:00 – 17:00' : 'Working hours: Mon – Fri, 8:00 – 17:00' ?></div>
+        </div>
+    </div>
+    <div style="background:var(--bg-glass);border-radius:var(--radius);padding:16px;margin-top:16px;border:1px solid var(--border);">
+        <p style="margin:0;font-size:0.92rem;color:var(--text-muted);">
+            <strong>📋 <?= $lang === 'vi' ? 'Thông tin cần chuẩn bị:' : 'Please prepare:' ?></strong>
+        </p>
+        <ul style="margin:8px 0 0;padding-left:20px;font-size:0.9rem;color:var(--text-muted);">
+            <li><?= $lang === 'vi' ? 'Mã sinh viên / Mã giảng viên' : 'Student ID / Teacher ID' ?></li>
+            <li><?= $lang === 'vi' ? 'CMND / CCCD để xác minh danh tính' : 'ID card for identity verification' ?></li>
+            <li><?= $lang === 'vi' ? 'Email đã đăng ký trong hệ thống' : 'Registered email address' ?></li>
+        </ul>
+    </div>
+    <p class="subtitle" style="margin-top:20px">
+        <a href="login.php" class="btn btn-primary btn-block"><?= $lang === 'vi' ? '← Quay lại đăng nhập' : '← Back to login' ?></a>
+    </p>
 </div>
 </body>
 </html>
