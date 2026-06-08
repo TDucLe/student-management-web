@@ -2,7 +2,7 @@
 require_once dirname(__DIR__) . '/config.php';
 requireLogout();
 
-$error = '';
+
 $lang = lang();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
