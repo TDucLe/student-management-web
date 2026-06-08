@@ -7,8 +7,8 @@ $pageTitle = 'User Management';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_id'])) {
-        $pdo->prepare('UPDATE users SET deleted_at = NOW() WHERE id = ?')->execute([(int) $_POST['delete_id']]);
-        flash('success', 'User deactivated.');
+        $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([(int) $_POST['delete_id']]);
+        flash('success', 'User and all related data completely deleted.');
     } elseif (isset($_POST['add_user'])) {
         $username = trim($_POST['username'] ?? '');
         $email = trim($_POST['email'] ?? '');
@@ -82,7 +82,7 @@ renderHeader($pageTitle, $user);
                     <?php if ((int) $u['id'] !== $user['id']): ?>
                     <form method="POST" style="display:inline" onsubmit="return confirm('Deactivate user?');">
                         <input type="hidden" name="delete_id" value="<?= (int) $u['id'] ?>">
-                        <button type="submit" class="btn btn-danger btn-sm">Deactivate</button>
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                     </form>
                     <?php endif; ?>
                 </td>
