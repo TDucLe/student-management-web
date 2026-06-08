@@ -93,7 +93,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit" class="btn btn-primary btn-block"><?= $lang === 'vi' ? 'Đăng nhập' : 'Login' ?></button>
         </form>
         <p class="subtitle" style="margin-top:20px">
-            <a href="register.php"><?= $lang === 'vi' ? 'Tạo tài khoản' : 'Create account' ?></a> ·
             <a href="forgot_password.php"><?= $lang === 'vi' ? 'Quên mật khẩu?' : 'Forgot password?' ?></a>
         </p>
     </div>
