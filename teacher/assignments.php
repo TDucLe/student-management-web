@@ -111,3 +111,4 @@ renderHeader($pageTitle, $user);
     </div>
 </div>
 <?php renderFooter(); ?>
+//code
