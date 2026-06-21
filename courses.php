@@ -1,208 +1,68 @@
 <?php
-session_start();
-include '../config.php';
-include '../auth.php';
+require_once dirname(__DIR__) . '/config.php';
+requireRole('teacher');
 
-checkLogin();
+$user = getCurrentUser();
+$pageTitle = 'Course Catalog';
 
-if($_SESSION['user_role'] !== 'teacher'){
-    die("Access denied");
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['add_course'])) {
+        try {
+            $pdo->prepare('INSERT INTO courses (course_code, course_name, credits, department) VALUES (?, ?, ?, ?)')
+                ->execute([strtoupper(trim($_POST['course_code'])), trim($_POST['course_name']), (int) $_POST['credits'], trim($_POST['department'])]);
+            flash('success', 'Course added.');
+        } catch (PDOException $e) {
+            flash('error', 'Course code may already exist.');
+        }
+    } elseif (isset($_POST['delete_course'])) {
+        try {
+            $pdo->prepare('DELETE FROM courses WHERE id = ?')->execute([(int) $_POST['course_id']]);
+            flash('success', 'Course deleted.');
+        } catch (PDOException $e) {
+            flash('error', 'Cannot delete — linked to classes.');
+        }
+    }
+    header('Location: courses.php');
+    exit;
 }
 
-$teacher_id = $_SESSION['user_id'];
+$courses = $pdo->query('SELECT * FROM courses ORDER BY created_at DESC')->fetchAll();
 
-// CREATE
-if(isset($_POST['add'])){
-
-    $stmt = $conn->prepare("
-        INSERT INTO courses(title, description, instructor_id)
-        VALUES (?, ?, ?)
-    ");
-
-    $stmt->bind_param(
-        "ssi",
-        $_POST['title'],
-        $_POST['description'],
-        $teacher_id
-    );
-
-    $stmt->execute();
-
-    header("Location: courses.php");
-    exit();
-}
-
-// DELETE
-if(isset($_GET['delete'])){
-
-    $stmt = $conn->prepare("
-        DELETE FROM courses
-        WHERE id=? AND instructor_id=?
-    ");
-
-    $stmt->bind_param(
-        "ii",
-        $_GET['delete'],
-        $teacher_id
-    );
-
-    $stmt->execute();
-
-    header("Location: courses.php");
-    exit();
-}
-
-// GET EDIT
-$edit = null;
-
-if(isset($_GET['edit'])){
-
-    $stmt = $conn->prepare("
-        SELECT * FROM courses
-        WHERE id=? AND instructor_id=?
-    ");
-
-    $stmt->bind_param(
-        "ii",
-        $_GET['edit'],
-        $teacher_id
-    );
-
-    $stmt->execute();
-
-    $edit = $stmt->get_result()->fetch_assoc();
-}
-
-// UPDATE
-if(isset($_POST['update'])){
-
-    $stmt = $conn->prepare("
-        UPDATE courses
-        SET title=?, description=?
-        WHERE id=? AND instructor_id=?
-    ");
-
-    $stmt->bind_param(
-        "ssii",
-        $_POST['title'],
-        $_POST['description'],
-        $_POST['id'],
-        $teacher_id
-    );
-
-    $stmt->execute();
-
-    header("Location: courses.php");
-    exit();
-}
-
-// READ
-$stmt = $conn->prepare("
-    SELECT * FROM courses
-    WHERE instructor_id=?
-");
-
-$stmt->bind_param("i", $teacher_id);
-
-$stmt->execute();
-
-$result = $stmt->get_result();
+renderHeader($pageTitle, $user);
 ?>
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Courses</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body class="container mt-4">
-
-<h2>Course Management</h2>
-
-<form method="POST" class="mb-3">
-
-    <input type="hidden" name="id" value="<?= $edit['id'] ?? '' ?>">
-
-    <input
-        type="text"
-        name="title"
-        class="form-control mb-2"
-        placeholder="Course title"
-        value="<?= $edit['title'] ?? '' ?>"
-        required
-    >
-
-    <textarea
-        name="description"
-        class="form-control mb-2"
-        placeholder="Description"
-    ><?= $edit['description'] ?? '' ?></textarea>
-
-    <?php if($edit): ?>
-
-        <button class="btn btn-warning" name="update">
-            Update
-        </button>
-
-        <a href="courses.php" class="btn btn-secondary">
-            Cancel
-        </a>
-
-    <?php else: ?>
-
-        <button class="btn btn-primary" name="add">
-            Add Course
-        </button>
-
-    <?php endif; ?>
-
-</form>
-
-<table class="table table-bordered">
-
-<tr>
-    <th>ID</th>
-    <th>Title</th>
-    <th>Description</th>
-    <th>Action</th>
-</tr>
-
-<?php while($row = $result->fetch_assoc()): ?>
-
-<tr>
-
-    <td><?= $row['id'] ?></td>
-
-    <td><?= htmlspecialchars($row['title']) ?></td>
-
-    <td><?= htmlspecialchars($row['description']) ?></td>
-
-    <td>
-
-        <a
-            href="?edit=<?= $row['id'] ?>"
-            class="btn btn-warning btn-sm"
-        >
-            Edit
-        </a>
-
-        <a
-            href="?delete=<?= $row['id'] ?>"
-            class="btn btn-danger btn-sm"
-            onclick="return confirm('Delete this course?')"
-        >
-            Delete
-        </a>
-
-    </td>
-
-</tr>
-
-<?php endwhile; ?>
-
-</table>
-
-</body>
-</html>
+<div class="card">
+    <h2>Add to catalog</h2>
+    <form method="POST" data-validate>
+        <div class="form-grid">
+            <div class="form-group"><label>Code</label><input name="course_code" required></div>
+            <div class="form-group"><label>Name</label><input name="course_name" required></div>
+            <div class="form-group"><label>Credits</label><input type="number" name="credits" min="1" max="10" required></div>
+            <div class="form-group"><label>Department</label><input name="department" required></div>
+        </div>
+        <button type="submit" name="add_course" class="btn btn-primary">Add course</button>
+    </form>
+</div>
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Code</th><th>Name</th><th>Credits</th><th>Dept</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($courses as $r): ?>
+            <tr>
+                <td><strong><?= htmlspecialchars($r['course_code']) ?></strong></td>
+                <td><?= htmlspecialchars($r['course_name']) ?></td>
+                <td><?= (int) $r['credits'] ?></td>
+                <td><?= htmlspecialchars($r['department']) ?></td>
+                <td>
+                    <form method="POST" onsubmit="return confirm('Delete?');">
+                        <input type="hidden" name="course_id" value="<?= (int) $r['id'] ?>">
+                        <button type="submit" name="delete_course" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php renderFooter(); ?>
