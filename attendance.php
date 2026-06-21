@@ -1,76 +1,159 @@
 <?php
-session_start();
-include '../config.php';
-include '../auth.php';
+require_once dirname(__DIR__) . '/config.php';
+requireRole('teacher');
 
-checkLogin();
+$user = getCurrentUser();
+$teacher_id = getTeacherId($pdo, $user['id'], $user['username']);
+$pageTitle = t('nav.attendance');
 
-if($_SESSION['user_role'] !== 'teacher'){
-    die("Access denied");
+$classes = $pdo->prepare('SELECT id, class_name FROM classes WHERE teacher_id = ? ORDER BY class_name');
+$classes->execute([$teacher_id]);
+$classList = $classes->fetchAll();
+
+$class_id = (int) ($_GET['class_id'] ?? ($classList[0]['id'] ?? 0));
+$date = $_GET['date'] ?? date('Y-m-d');
+$sched_id = (int) ($_GET['sched_id'] ?? 0);
+
+if ($class_id && !verifyTeacherOwnsClass($pdo, $teacher_id, $class_id)) {
+    $class_id = 0;
 }
 
-$teacher_id = $_SESSION['user_id'];
-
-// STUDENTS
-$students = $conn->query("
-SELECT id,name
-FROM users
-WHERE role='student'
-");
-
-// CLASSES
-$stmt = $conn->prepare("
-SELECT *
-FROM classes
-WHERE teacher_id=?
-");
-
-$stmt->bind_param("i", $teacher_id);
-
-$stmt->execute();
-
-$classes = $stmt->get_result();
-
-// SAVE
-if(isset($_POST['mark'])){
-
-    foreach($_POST['status'] as $student_id => $status){
-
-        $stmt = $conn->prepare("
-        INSERT INTO attendance(student_id,class_id,date,status)
-        VALUES(?,?,?,?)
-        ");
-
-        $date = date('Y-m-d');
-
-        $stmt->bind_param(
-            "iiss",
-            $student_id,
-            $_POST['class_id'],
-            $date,
-            $status
-        );
-
-        $stmt->execute();
+$schedules = [];
+if ($class_id) {
+    $s = $pdo->prepare('SELECT id, day_of_week, start_time, end_time FROM schedules WHERE class_id = ?');
+    $s->execute([$class_id]);
+    $schedules = $s->fetchAll();
+    if ($sched_id === 0 && !empty($schedules)) {
+        $sched_id = (int) $schedules[0]['id'];
     }
-
-    header("Location: attendance.php");
-    exit();
 }
 
-// READ
-$stmt = $conn->prepare("
-SELECT a.*, u.name as student, c.name as class
-FROM attendance a
-JOIN users u ON a.student_id=u.id
-JOIN classes c ON a.class_id=c.id
-WHERE c.teacher_id=?
-ORDER BY a.date DESC
-");
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_class_attendance'])) {
+    $class_id = (int) $_POST['class_id'];
+    $sched_id = (int) $_POST['sched_id'];
+    $date = $_POST['date'];
+    if (verifyTeacherOwnsClass($pdo, $teacher_id, $class_id) && $sched_id > 0) {
+        // Get class name for notification
+        $cnStmt = $pdo->prepare('SELECT class_name FROM classes WHERE id = ?');
+        $cnStmt->execute([$class_id]);
+        $className = $cnStmt->fetchColumn() ?: '';
 
-$stmt->bind_param("i", $teacher_id);
+        $statuses = $_POST['status'] ?? [];
+        $comments = $_POST['teacher_comment'] ?? [];
+        foreach ($statuses as $enrollment_id => $status) {
+            if (!in_array($status, ['present', 'absent', 'late'], true)) {
+                continue;
+            }
+            $comment = trim($comments[$enrollment_id] ?? '');
+            $pdo->prepare('INSERT INTO attendance (enrollment_id, schedule_id, attendance_date, status, teacher_comment) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status), teacher_comment=VALUES(teacher_comment)')
+                ->execute([(int) $enrollment_id, $sched_id, $date, $status, $comment]);
 
-$stmt->execute();
+            // Notify students marked absent or late
+            if ($status === 'absent' || $status === 'late') {
+                $stuStmt = $pdo->prepare('SELECT s.user_id FROM enrollments e JOIN students s ON e.student_id = s.id WHERE e.id = ?');
+                $stuStmt->execute([(int) $enrollment_id]);
+                $stuRow = $stuStmt->fetch();
+                if ($stuRow && $stuRow['user_id']) {
+                    $statusVi = $status === 'absent' ? 'vắng mặt' : 'đi muộn';
+                    $statusEn = $status === 'absent' ? 'absent' : 'late';
+                    sendNotification($pdo, (int) $stuRow['user_id'], 'attendance',
+                        (lang() === 'vi' ? "Điểm danh $date — Lớp $className: $statusVi" : "Attendance $date — Class $className: $statusEn")
+                    );
+                }
+            }
+        }
+        flash('success', lang() === 'vi' ? 'Đã lưu điểm danh cả lớp.' : 'Class attendance saved.');
+    }
+    header('Location: attendance.php?class_id=' . $class_id . '&date=' . urlencode($date) . '&sched_id=' . $sched_id);
+    exit;
+}
 
-$data = $stmt->get_result();
+$roster = [];
+$existing = [];
+if ($class_id && $sched_id) {
+    $roster = getClassEnrollments($pdo, $class_id);
+    $stmt = $pdo->prepare('SELECT enrollment_id, status, teacher_comment FROM attendance WHERE schedule_id = ? AND attendance_date = ?');
+    $stmt->execute([$sched_id, $date]);
+    foreach ($stmt->fetchAll() as $row) {
+        $existing[$row['enrollment_id']] = $row;
+    }
+}
+
+renderHeader($pageTitle, $user);
 ?>
+<div class="card class-picker">
+    <form method="GET" class="form-grid">
+        <div class="form-group">
+            <label><?= htmlspecialchars(t('select_class')) ?></label>
+            <select name="class_id" onchange="this.form.submit()">
+                <?php foreach ($classList as $c): ?>
+                <option value="<?= (int) $c['id'] ?>" <?= (int) $c['id'] === $class_id ? 'selected' : '' ?>><?= htmlspecialchars($c['class_name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label><?= lang() === 'vi' ? 'Ngày' : 'Date' ?></label>
+            <input type="date" name="date" value="<?= htmlspecialchars($date) ?>" onchange="this.form.submit()">
+        </div>
+        <div class="form-group">
+            <label><?= lang() === 'vi' ? 'Tiết học' : 'Session' ?></label>
+            <select name="sched_id" onchange="this.form.submit()">
+                <?php foreach ($schedules as $sch): ?>
+                <option value="<?= (int) $sch['id'] ?>" <?= (int) $sch['id'] === $sched_id ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($sch['day_of_week'] . ' ' . date('H:i', strtotime($sch['start_time']))) ?>
+                </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </form>
+</div>
+
+<?php if (empty($schedules) && $class_id): ?>
+<div class="alert alert-info"><?= lang() === 'vi' ? 'Lớp chưa có lịch. Admin cần xếp lịch trước.' : 'No schedule for this class yet.' ?></div>
+<?php elseif ($class_id && $sched_id && !empty($roster)): ?>
+<form method="POST">
+    <input type="hidden" name="class_id" value="<?= $class_id ?>">
+    <input type="hidden" name="sched_id" value="<?= $sched_id ?>">
+    <input type="hidden" name="date" value="<?= htmlspecialchars($date) ?>">
+    <div class="card">
+        <h2><?= htmlspecialchars(t('all_students')) ?> — <?= count($roster) ?> <?= htmlspecialchars(t('student')) ?></h2>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th><?= htmlspecialchars(t('student')) ?></th>
+                        <th><?= htmlspecialchars(t('present')) ?> / <?= htmlspecialchars(t('absent')) ?> / <?= htmlspecialchars(t('late')) ?></th>
+                        <th><?= lang() === 'vi' ? 'Nhận xét GV' : 'Teacher comment' ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($roster as $i => $stu):
+                    $eid = (int) $stu['enrollment_id'];
+                    $cur = $existing[$eid] ?? null;
+                    $curStatus = $cur['status'] ?? 'present';
+                ?>
+                <tr>
+                    <td><?= $i + 1 ?></td>
+                    <td><strong><?= htmlspecialchars($stu['full_name']) ?></strong><br><small><?= htmlspecialchars($stu['student_code']) ?></small></td>
+                    <td>
+                        <div class="status-group">
+                            <?php foreach (['present', 'absent', 'late'] as $st): ?>
+                            <label class="status-btn <?= $st ?>">
+                                <input type="radio" name="status[<?= $eid ?>]" value="<?= $st ?>" <?= $curStatus === $st ? 'checked' : '' ?>>
+                                <?= htmlspecialchars(t($st)) ?>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </td>
+                    <td><input type="text" name="teacher_comment[<?= $eid ?>]" value="<?= htmlspecialchars($cur['teacher_comment'] ?? '') ?>" placeholder="..."></td>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" name="save_class_attendance" class="btn btn-gold" style="margin-top:20px"><?= htmlspecialchars(t('save_attendance')) ?></button>
+    </div>
+</form>
+<?php endif;
+renderFooter();
