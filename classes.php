@@ -1,210 +1,49 @@
 <?php
-session_start();
-include '../config.php';
-include '../auth.php';
+require_once dirname(__DIR__) . '/config.php';
+requireRole('teacher');
 
-checkLogin();
+$user = getCurrentUser();
+$teacher_id = getTeacherId($pdo, $user['id'], $user['username']);
+$pageTitle = t('nav.classes');
 
-if($_SESSION['user_role'] !== 'teacher'){
-    die("Access denied");
-}
-
-$teacher_id = $_SESSION['user_id'];
-
-// CREATE
-if(isset($_POST['add'])){
-
-    $stmt = $conn->prepare("
-        INSERT INTO classes(name, schedule, teacher_id)
-        VALUES (?, ?, ?)
-    ");
-
-    $stmt->bind_param(
-        "ssi",
-        $_POST['name'],
-        $_POST['schedule'],
-        $teacher_id
-    );
-
-    $stmt->execute();
-
-    header("Location: classes.php");
-    exit();
-}
-
-// DELETE
-if(isset($_GET['delete'])){
-
-    $stmt = $conn->prepare("
-        DELETE FROM classes
-        WHERE id=? AND teacher_id=?
-    ");
-
-    $stmt->bind_param(
-        "ii",
-        $_GET['delete'],
-        $teacher_id
-    );
-
-    $stmt->execute();
-
-    header("Location: classes.php");
-    exit();
-}
-
-// GET EDIT
-$edit = null;
-
-if(isset($_GET['edit'])){
-
-    $stmt = $conn->prepare("
-        SELECT * FROM classes
-        WHERE id=? AND teacher_id=?
-    ");
-
-    $stmt->bind_param(
-        "ii",
-        $_GET['edit'],
-        $teacher_id
-    );
-
-    $stmt->execute();
-
-    $edit = $stmt->get_result()->fetch_assoc();
-}
-
-// UPDATE
-if(isset($_POST['update'])){
-
-    $stmt = $conn->prepare("
-        UPDATE classes
-        SET name=?, schedule=?
-        WHERE id=? AND teacher_id=?
-    ");
-
-    $stmt->bind_param(
-        "ssii",
-        $_POST['name'],
-        $_POST['schedule'],
-        $_POST['id'],
-        $teacher_id
-    );
-
-    $stmt->execute();
-
-    header("Location: classes.php");
-    exit();
-}
-
-// READ
-$stmt = $conn->prepare("
-    SELECT * FROM classes
-    WHERE teacher_id=?
+$stmt = $pdo->prepare("
+    SELECT cl.id, cl.class_name, c.course_name, s.name AS semester_name, r.room_number,
+           (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = cl.id AND e.status = 'active') AS student_count
+    FROM classes cl
+    JOIN courses c ON cl.course_id = c.id
+    LEFT JOIN semesters s ON cl.semester_id = s.id
+    LEFT JOIN rooms r ON cl.room_id = r.id
+    WHERE cl.teacher_id = ? ORDER BY cl.class_name
 ");
+$stmt->execute([$teacher_id]);
+$classes_data = $stmt->fetchAll();
 
-$stmt->bind_param("i", $teacher_id);
-
-$stmt->execute();
-
-$result = $stmt->get_result();
+renderHeader($pageTitle, $user);
 ?>
+<div class="quick-grid">
+    <?php foreach ($classes_data as $row): $cid = (int) $row['id']; ?>
+    <div class="quick-tile" style="cursor:default">
+        <span class="tile-icon">🏫</span>
+        <strong><?= htmlspecialchars($row['class_name']) ?></strong>
+        <span><?= htmlspecialchars($row['course_name']) ?> · <?= (int) $row['student_count'] ?> <?= htmlspecialchars(t('student')) ?></span>
+        <?php if (!empty($row['semester_name'])): ?>
+        <span style="font-size:0.9rem;color:var(--text-muted)"><?= htmlspecialchars($row['semester_name']) ?><?= !empty($row['room_number']) ? ' · ' . htmlspecialchars($row['room_number']) : '' ?></span>
+        <?php endif; ?>
+        <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px">
+            <a href="class_students.php?class_id=<?= $cid ?>" class="btn btn-secondary btn-sm"><?= lang() === 'vi' ? 'Danh sách SV' : 'Students' ?></a>
+            <a href="attendance.php?class_id=<?= $cid ?>" class="btn btn-gold btn-sm"><?= htmlspecialchars(t('nav.attendance')) ?></a>
+            <a href="grades.php?class_id=<?= $cid ?>" class="btn btn-primary btn-sm"><?= htmlspecialchars(t('nav.grades')) ?></a>
+        </div>
+    </div>
+    <?php endforeach; ?>
+</div>
 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Classes</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body class="container mt-4">
-
-<h2>Class Management</h2>
-
-<form method="POST" class="mb-3">
-
-<input type="hidden" name="id" value="<?= $edit['id'] ?? '' ?>">
-
-<input
-    type="text"
-    name="name"
-    class="form-control mb-2"
-    placeholder="Class name"
-    value="<?= $edit['name'] ?? '' ?>"
-    required
->
-
-<input
-    type="text"
-    name="schedule"
-    class="form-control mb-2"
-    placeholder="Schedule"
-    value="<?= $edit['schedule'] ?? '' ?>"
->
-
-<?php if($edit): ?>
-
-<button class="btn btn-warning" name="update">
-    Update
-</button>
-
-<a href="classes.php" class="btn btn-secondary">
-    Cancel
-</a>
-
-<?php else: ?>
-
-<button class="btn btn-primary" name="add">
-    Add Class
-</button>
-
+<?php if (empty($classes_data)): ?>
+<div class="card" style="text-align:center;padding:40px;">
+    <p style="font-size:1.2rem;color:var(--text-muted)">
+        <?= lang() === 'vi' ? '📭 Bạn chưa được phân công lớp nào. Liên hệ Admin để được phân công.' : '📭 No classes assigned. Contact Admin to get assigned.' ?>
+    </p>
+</div>
 <?php endif; ?>
 
-</form>
-
-<table class="table table-bordered">
-
-<tr>
-<th>ID</th>
-<th>Name</th>
-<th>Schedule</th>
-<th>Action</th>
-</tr>
-
-<?php while($row = $result->fetch_assoc()): ?>
-
-<tr>
-
-<td><?= $row['id'] ?></td>
-
-<td><?= htmlspecialchars($row['name']) ?></td>
-
-<td><?= htmlspecialchars($row['schedule']) ?></td>
-
-<td>
-
-<a
-href="?edit=<?= $row['id'] ?>"
-class="btn btn-warning btn-sm"
->
-Edit
-</a>
-
-<a
-href="?delete=<?= $row['id'] ?>"
-class="btn btn-danger btn-sm"
-onclick="return confirm('Delete this class?')"
->
-Delete
-</a>
-
-</td>
-
-</tr>
-
-<?php endwhile; ?>
-
-</table>
-
-</body>
-</html>
+<?php renderFooter(); ?>
