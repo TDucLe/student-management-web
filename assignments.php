@@ -1,6 +1,7 @@
 <?php
-require_once dirname(__DIR__) . '/config.php';//ktra quyen truy cap
-requireRole('teacher');
+//ktra quyen truy cap
+require_once dirname(__DIR__) . '/config.php';//nap file cau hinh cua web
+requireRole('teacher');//neu kp techaer k dc vao trang 
 
 $user = getCurrentUser();
 $teacher_id = getTeacherId($pdo, $user['id'], $user['username']);
