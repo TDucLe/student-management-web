@@ -1,43 +1,44 @@
 <?php
-session_start();
-include '../db/db.php';
-if (!isset($_SESSION['user_id'])) { header("Location: ../auth/login.php"); exit(); }
+require_once dirname(__DIR__) . '/config.php';
+requireRole('student');
 
-$sid_q = $conn->prepare("SELECT id FROM students WHERE user_id = ?");
-$sid_q->bind_param("i", $_SESSION['user_id']);
-$sid_q->execute();
-$stu = $sid_q->get_result()->fetch_assoc();
-$student_id = $stu['id'];
+$user = getCurrentUser();
+$student_id = getStudentId($pdo, $user['id'], $user['username']);
+$pageTitle = 'Leave Status';
 
-$sql = "SELECT lr.*, cl.class_name, c.course_name
-        FROM leave_requests lr
-        JOIN classes cl ON lr.class_id = cl.id
-        JOIN courses c ON cl.course_id = c.id
-        WHERE lr.student_id = ?
-        ORDER BY lr.leave_date DESC";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $student_id);
-$stmt->execute();
-$result = $stmt->get_result();
+$stmt = $pdo->prepare("
+    SELECT lr.*, cl.class_name, c.course_name
+    FROM leave_requests lr
+    JOIN classes cl ON lr.class_id = cl.id
+    JOIN courses c ON cl.course_id = c.id
+    WHERE lr.student_id = ?
+    ORDER BY lr.created_at DESC
+");
+$stmt->execute([$student_id]);
+$rows = $stmt->fetchAll();
+
+renderHeader($pageTitle, $user);
 ?>
-<!DOCTYPE html>
-<html>
-<head><title>Leave Status</title>
-<style>.pending{color:orange}.approved{color:green}.rejected{color:red}</style>
-</head>
-<body>
-<h2>Leave Requests</h2>
-<table border="1"><tr><th>Class</th><th>Course</th><th>Reason</th><th>Date</th><th>Status</th></tr>
-<?php while($row = $result->fetch_assoc()): ?>
-<tr>
-<td><?= htmlspecialchars($row['class_name']) ?></td>
-<td><?= htmlspecialchars($row['course_name']) ?></td>
-<td><?= htmlspecialchars($row['reason']) ?></td>
-<td><?= htmlspecialchars($row['leave_date']) ?></td>
-<td class="<?= $row['status'] ?>"><?= strtoupper($row['status']) ?></td>
-</tr>
-<?php endwhile; ?>
-</table>
-<a href="leave_request.php">New Request</a> | <a href="../index.php">Back</a>
-</body>
-</html>
+<div class="card" style="margin-bottom:16px">
+    <a href="leave_request.php" class="btn btn-primary">New request</a>
+</div>
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Class</th><th>Date</th><th>Reason</th><th>Status</th></tr></thead>
+            <tbody>
+            <?php if (empty($rows)): ?>
+            <tr><td colspan="4">No leave requests yet.</td></tr>
+            <?php else: foreach ($rows as $r): ?>
+            <tr>
+                <td><?= htmlspecialchars($r['class_name']) ?> (<?= htmlspecialchars($r['course_name']) ?>)</td>
+                <td><?= htmlspecialchars($r['leave_date']) ?></td>
+                <td><?= htmlspecialchars($r['reason']) ?></td>
+                <td><span class="badge badge-<?= htmlspecialchars($r['status']) ?>"><?= htmlspecialchars($r['status']) ?></span></td>
+            </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php renderFooter(); ?>
