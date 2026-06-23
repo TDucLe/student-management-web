@@ -1,19 +1,19 @@
 <?php
-require_once dirname(__DIR__) . '/config.php';
-requireRole('student');
+require_once dirname(__DIR__) . '/config.php'; 
+requireRole('student'); //kiemtraquyen
 
-$user = getCurrentUser();
+$user = getCurrentUser(); // lay mssv
 $student_id = getStudentId($pdo, $user['id'], $user['username']);
 $pageTitle = 'Assignments';
 
-$uploadDir = APP_ROOT . '/uploads/';
+$uploadDir = APP_ROOT . '/uploads/'; //tao thu muc upload
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
-    $assignment_id = (int) ($_POST['assignment_id'] ?? 0);
-    $dl = $pdo->prepare('SELECT deadline FROM assignments WHERE id = ?');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) //sv bdau xli {
+    $assignment_id = (int) ($_POST['assignment_id'] ?? 0); //lay id
+    $dl = $pdo->prepare('SELECT deadline FROM assignments WHERE id = ?');//ktra dl
     $dl->execute([$assignment_id]);
     $deadline = $dl->fetchColumn();
     if ($deadline && date('Y-m-d H:i:s') > $deadline) {
@@ -110,3 +110,4 @@ renderHeader($pageTitle, $user);
     </div>
 </div>
 <?php renderFooter(); ?>
+
