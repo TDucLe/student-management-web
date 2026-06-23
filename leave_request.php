@@ -1,60 +1,58 @@
 <?php
-session_start();
-include '../db/db.php';
-if (!isset($_SESSION['user_id'])) { header("Location: ../auth/login.php"); exit(); }
+require_once dirname(__DIR__) . '/config.php';
+requireRole('student');
 
-$sid_q = $conn->prepare("SELECT id FROM students WHERE user_id = ?");
-$sid_q->bind_param("i", $_SESSION['user_id']);
-$sid_q->execute();
-$stu = $sid_q->get_result()->fetch_assoc();
-$student_id = $stu['id'];
+$user = getCurrentUser();
+$student_id = getStudentId($pdo, $user['id'], $user['username']);
+$pageTitle = 'Leave Request';
 
-$classes = $conn->prepare("SELECT cl.id, cl.class_name, c.course_name
-                           FROM enrollments e
-                           JOIN classes cl ON e.class_id = cl.id
-                           JOIN courses c ON cl.course_id = c.id
-                           WHERE e.student_id = ?");
-$classes->bind_param("i", $student_id);
-$classes->execute();
-$myClasses = $classes->get_result();
+$cls = $pdo->prepare("
+    SELECT cl.id, cl.class_name, c.course_name
+    FROM enrollments e
+    JOIN classes cl ON e.class_id = cl.id
+    JOIN courses c ON cl.course_id = c.id
+    WHERE e.student_id = ?
+");
+$cls->execute([$student_id]);
+$myClasses = $cls->fetchAll();
 
-if(isset($_POST['submit'])){
-    $class_id = $_POST['class_id'];
-    $reason = trim($_POST['reason']);
-    $leave_date = $_POST['leave_date'];
-    if(empty($reason)) $error = "Reason required.";
-    else {
-        $chk = $conn->prepare("SELECT id FROM enrollments WHERE student_id = ? AND class_id = ?");
-        $chk->bind_param("ii", $student_id, $class_id);
-        $chk->execute();
-        if($chk->get_result()->num_rows==0) $error = "Invalid class.";
-        else {
-            $ins = $conn->prepare("INSERT INTO leave_requests (student_id, class_id, reason, leave_date, status) VALUES (?,?,?,?,'pending')");
-            $ins->bind_param("iiss", $student_id, $class_id, $reason, $leave_date);
-            $ins->execute();
-            header("Location: leave_status.php");
-            exit();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
+    $class_id = (int) ($_POST['class_id'] ?? 0);
+    $reason = trim($_POST['reason'] ?? '');
+    $leave_date = $_POST['leave_date'] ?? '';
+    if ($reason === '') {
+        flash('error', 'Reason is required.');
+    } else {
+        $chk = $pdo->prepare('SELECT id FROM enrollments WHERE student_id = ? AND class_id = ?');
+        $chk->execute([$student_id, $class_id]);
+        if (!$chk->fetch()) {
+            flash('error', 'Invalid class selection.');
+        } else {
+            $pdo->prepare("INSERT INTO leave_requests (student_id, class_id, reason, leave_date, status) VALUES (?, ?, ?, ?, 'pending')")
+                ->execute([$student_id, $class_id, $reason, $leave_date]);
+            flash('success', 'Leave request submitted.');
+            header('Location: leave_status.php');
+            exit;
         }
     }
 }
+
+renderHeader($pageTitle, $user);
 ?>
-<!DOCTYPE html>
-<html>
-<head><title>Leave Request</title></head>
-<body>
-<h2>Leave Request</h2>
-<?php if(isset($error)) echo "<p style='color:red'>$error</p>"; ?>
-<form method="POST">
-<label>Class:</label>
-<select name="class_id" required>
-<?php while($c = $myClasses->fetch_assoc()): ?>
-<option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['class_name']) ?> (<?= htmlspecialchars($c['course_name']) ?>)</option>
-<?php endwhile; ?>
-</select><br>
-<label>Reason:</label><textarea name="reason" required></textarea><br>
-<label>Date:</label><input type="date" name="leave_date" required><br>
-<button type="submit" name="submit">Submit</button>
-</form>
-<a href="leave_status.php">View requests</a> | <a href="../index.php">Back</a>
-</body>
-</html>
+<div class="card">
+    <form method="POST" data-validate>
+        <div class="form-group">
+            <label>Class</label>
+            <select name="class_id" required>
+                <?php foreach ($myClasses as $c): ?>
+                <option value="<?= (int) $c['id'] ?>"><?= htmlspecialchars($c['class_name'] . ' (' . $c['course_name'] . ')') ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group"><label>Reason</label><textarea name="reason" required></textarea></div>
+        <div class="form-group"><label>Leave date</label><input type="date" name="leave_date" required></div>
+        <button type="submit" name="submit" class="btn btn-primary">Submit request</button>
+        <a href="leave_status.php" class="btn btn-secondary" style="margin-left:8px">View status</a>
+    </form>
+</div>
+<?php renderFooter(); ?>
