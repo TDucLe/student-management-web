@@ -1,40 +1,41 @@
 <?php
-session_start();
-include '../db/db.php';
-if (!isset($_SESSION['user_id'])) { header("Location: ../auth/login.php"); exit(); }
+require_once dirname(__DIR__) . '/config.php';
+requireRole('student');
 
-$sql = "SELECT cl.class_name, c.course_name, s.name AS semester_name, r.room_number,
-               sc.day_of_week, sc.start_time, sc.end_time
-        FROM enrollments e
-        JOIN classes cl ON e.class_id = cl.id
-        JOIN courses c ON cl.course_id = c.id
-        LEFT JOIN semesters s ON cl.semester_id = s.id
-        LEFT JOIN rooms r ON cl.room_id = r.id
-        LEFT JOIN schedules sc ON sc.class_id = cl.id
-        WHERE e.student_id = (SELECT id FROM students WHERE user_id = ?)
-        ORDER BY sc.day_of_week, sc.start_time";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $_SESSION['user_id']);
-$stmt->execute();
-$result = $stmt->get_result();
+$user = getCurrentUser();
+$student_id = getStudentId($pdo, $user['id'], $user['username']);
+$pageTitle = 'My Classes';
+
+$stmt = $pdo->prepare("
+    SELECT cl.class_name, c.course_name, c.course_code, e.status, e.enrolled_at, t.full_name AS teacher_name
+    FROM enrollments e
+    JOIN classes cl ON e.class_id = cl.id
+    JOIN courses c ON cl.course_id = c.id
+    LEFT JOIN teachers t ON cl.teacher_id = t.id
+    WHERE e.student_id = ?
+    ORDER BY e.enrolled_at DESC
+");
+$stmt->execute([$student_id]);
+$rows = $stmt->fetchAll();
+
+renderHeader($pageTitle, $user);
 ?>
-<!DOCTYPE html>
-<html>
-<head><title>My Classes</title></head>
-<body>
-<h2>My Classes & Schedule</h2>
-<table border="1"><tr><th>Class</th><th>Course</th><th>Semester</th><th>Room</th><th>Day</th><th>Time</th></tr>
-<?php while($row = $result->fetch_assoc()): ?>
-<tr>
-<td><?= htmlspecialchars($row['class_name']) ?></td>
-<td><?= htmlspecialchars($row['course_name']) ?></td>
-<td><?= htmlspecialchars($row['semester_name']) ?></td>
-<td><?= htmlspecialchars($row['room_number']) ?></td>
-<td><?= htmlspecialchars($row['day_of_week']) ?></td>
-<td><?= date('H:i', strtotime($row['start_time'])) ?> - <?= date('H:i', strtotime($row['end_time'])) ?></td>
-</tr>
-<?php endwhile; ?>
-</table>
-<a href="../index.php">Back</a>
-</body>
-</html>
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th>Class</th><th>Course</th><th>Teacher</th><th>Status</th><th>Enrolled</th></tr></thead>
+            <tbody>
+            <?php foreach ($rows as $r): ?>
+            <tr>
+                <td><?= htmlspecialchars($r['class_name']) ?></td>
+                <td><?= htmlspecialchars($r['course_code'] . ' — ' . $r['course_name']) ?></td>
+                <td><?= htmlspecialchars($r['teacher_name'] ?? '—') ?></td>
+                <td><span class="badge badge-<?= htmlspecialchars($r['status']) ?>"><?= htmlspecialchars($r['status']) ?></span></td>
+                <td><?= htmlspecialchars($r['enrolled_at']) ?></td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php renderFooter(); ?>
